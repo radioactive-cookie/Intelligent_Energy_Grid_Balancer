@@ -78,8 +78,9 @@ export default function App() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-transparent text-slate-100 tunnel-vignette relative z-0">
+      <div className="min-h-screen bg-transparent text-slate-100 tunnel-vignette relative z-0 overflow-hidden">
         <div className="tunnel-vignette"></div>
+        <div className="speed-lines"></div>
         {/* Header */}
         <header className="sticky top-0 z-50 border-b border-cyan-500/30 bg-black/40 backdrop-blur-md">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
