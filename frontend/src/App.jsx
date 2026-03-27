@@ -10,6 +10,15 @@ export default function App() {
   const [alerts, setAlerts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [introPlaying, setIntroPlaying] = useState(true);
+
+  // Intro sequence timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIntroPlaying(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const { data: wsData, isConnected } = useWebSocket();
 
@@ -78,9 +87,27 @@ export default function App() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-transparent text-slate-100 tunnel-vignette relative z-0 overflow-hidden">
+      <div className="fixed inset-0 z-[-2] pointer-events-none perspective-container">
+        <div className={`grid-floor ${introPlaying ? 'hyper-grid-floor' : ''}`}></div>
+        <div className={`grid-ceiling ${introPlaying ? 'hyper-grid-ceiling' : ''}`}></div>
+      </div>
+      <div className="min-h-screen bg-transparent text-slate-100 relative z-0">
         <div className="tunnel-vignette"></div>
-        <div className="speed-lines"></div>
+        <div className={`speed-lines ${introPlaying ? 'hyper-speed-lines' : ''}`}></div>
+
+        {introPlaying && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6 bg-black/60 backdrop-blur-sm transition-opacity duration-1000">
+             <div className="w-24 h-24 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin" style={{boxShadow: '0 0 30px rgba(6, 182, 212, 0.5)'}} />
+             <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 tracking-[0.3em] animate-pulse">
+               SYSTEM BOOTING
+             </h2>
+             <p className="text-cyan-400 tracking-widest text-sm md:text-base animate-pulse">
+               ESTABLISHING NEURAL LINK TO GRID...
+             </p>
+          </div>
+        )}
+
+        <div className={`transition-all duration-1000 ease-out origin-center ${introPlaying ? 'opacity-0 scale-90 blur-md pointer-events-none' : 'opacity-100 scale-100 blur-0'}`}>
         {/* Header */}
         <header className="sticky top-0 z-50 border-b border-cyan-500/30 bg-black/40 backdrop-blur-md">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
@@ -154,6 +181,7 @@ export default function App() {
             />
           )}
         </main>
+        </div>
       </div>
     </div>
   );

@@ -15,14 +15,20 @@ body {
   @apply bg-[#03030a] text-cyan-300 font-sans antialiased overflow-x-hidden;
   min-height: 100vh;
   margin: 0;
+}
+
+/* 3D Grid Tunnel Container */
+.perspective-container {
   perspective: 1000px;
   transform-style: preserve-3d;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* 3D Grid Tunnel - Bottom Floor */
-body::before {
-  content: "";
-  position: fixed;
+.grid-floor {
+  position: absolute;
   top: 50%;
   left: -50%;
   width: 200vw;
@@ -35,13 +41,11 @@ body::before {
   transform: rotateX(75deg) translateZ(0);
   transform-origin: top center;
   animation: gridMoveFloor 1s linear infinite;
-  z-index: -2;
 }
 
 /* 3D Grid Tunnel - Top Ceiling */
-body::after {
-  content: "";
-  position: fixed;
+.grid-ceiling {
+  position: absolute;
   bottom: 50%;
   left: -50%;
   width: 200vw;
@@ -54,7 +58,6 @@ body::after {
   transform: rotateX(-75deg) translateZ(0);
   transform-origin: bottom center;
   animation: gridMoveCeiling 1s linear infinite;
-  z-index: -2;
 }
 
 /* Vignette for deep tunnel feeling */
@@ -209,7 +212,7 @@ body::after {
 
 /* ── Speed Lines (Warp Effect) ─────────────────────────── */
 .speed-lines {
-  position: absolute;
+  position: fixed;
   top: 50%;
   left: 50%;
   width: 200vw;
@@ -228,4 +231,18 @@ body::after {
   0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
   50% { opacity: 0.8; }
   100% { transform: translate(-50%, -50%) scale(1.5) rotate(10deg); opacity: 0; }
+}
+
+/* ── Hyper Intro Classes ───────────────────────────────── */
+.hyper-speed-lines {
+  animation: warpSpeed 0.15s linear infinite !important;
+  opacity: 1 !important;
+}
+
+.hyper-grid-floor {
+  animation: gridMoveFloor 0.15s linear infinite !important;
+}
+
+.hyper-grid-ceiling {
+  animation: gridMoveCeiling 0.15s linear infinite !important;
 }
