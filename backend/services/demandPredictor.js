@@ -16,9 +16,11 @@ function predictDemand(hour) {
     (baseLoad * dataset.demandMultiplier * config.peakDemandMultiplier).toFixed(2)
   );
 
-  // Actual demand has small random deviation from prediction (±8%)
+  // Actual demand deviates from prediction by ±8%: multiplier range [0.92, 1.08]
+  const DEVIATION_MIN = 0.92;
+  const DEVIATION_RANGE = 0.16;
   const actual = parseFloat(
-    (predicted * (0.92 + Math.random() * 0.16)).toFixed(2)
+    (predicted * (DEVIATION_MIN + Math.random() * DEVIATION_RANGE)).toFixed(2)
   );
 
   let pattern = 'off-peak';

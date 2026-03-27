@@ -5,6 +5,8 @@ const WS_URL =
     ? `ws://${window.location.hostname}:3001`
     : 'ws://localhost:3001';
 
+// 3s reconnect delay is intentionally shorter than the 5s backend broadcast interval
+// so the client re-establishes the connection before the next update is missed.
 const RECONNECT_DELAY = 3000;
 
 export function useWebSocket() {

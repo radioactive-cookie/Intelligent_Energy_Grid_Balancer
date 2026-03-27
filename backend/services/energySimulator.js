@@ -1,6 +1,11 @@
 const config = require('../config/config');
 const mockDataset = require('../data/mockDataset');
 
+// Hour at which solar generation begins (sunrise)
+const SUNRISE_HOUR = 6;
+// Half-period of the solar sinusoidal curve (hours from sunrise to sunset)
+const SOLAR_CYCLE_HOURS = 12;
+
 /**
  * Simulate energy generation from solar and wind sources for a given hour.
  * @param {number} hour - Hour of the day (0-23)
@@ -11,7 +16,7 @@ function simulateEnergy(hour) {
   const dataset = mockDataset[h % 24];
 
   // Solar curve peaks at noon with natural sinusoidal shape + random cloud variation
-  const solarBase = config.maxSolarOutput * Math.max(0, Math.sin((h - 6) * Math.PI / 12));
+  const solarBase = config.maxSolarOutput * Math.max(0, Math.sin((h - SUNRISE_HOUR) * Math.PI / SOLAR_CYCLE_HOURS));
   const solarOutput = parseFloat(
     (solarBase * (0.85 + Math.random() * 0.30)).toFixed(2)
   );
