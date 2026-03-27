@@ -12,21 +12,95 @@ html {
 }
 
 body {
-  @apply bg-slate-900 text-slate-100 font-sans antialiased;
-  background-image: radial-gradient(ellipse at 20% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
+  @apply bg-[#03030a] text-cyan-300 font-sans antialiased overflow-x-hidden;
   min-height: 100vh;
+  margin: 0;
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* 3D Grid Tunnel - Bottom Floor */
+body::before {
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: -50%;
+  width: 200vw;
+  height: 200vh;
+  background-color: transparent;
+  background-image: 
+    linear-gradient(transparent 95%, rgba(6, 182, 212, 0.4) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(6, 182, 212, 0.4) 100%);
+  background-size: 50px 50px;
+  transform: rotateX(75deg) translateZ(0);
+  transform-origin: top center;
+  animation: gridMoveFloor 1s linear infinite;
+  z-index: -2;
+}
+
+/* 3D Grid Tunnel - Top Ceiling */
+body::after {
+  content: "";
+  position: fixed;
+  bottom: 50%;
+  left: -50%;
+  width: 200vw;
+  height: 200vh;
+  background-color: transparent;
+  background-image: 
+    linear-gradient(transparent 95%, rgba(236, 72, 153, 0.3) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(236, 72, 153, 0.3) 100%);
+  background-size: 50px 50px;
+  transform: rotateX(-75deg) translateZ(0);
+  transform-origin: bottom center;
+  animation: gridMoveCeiling 1s linear infinite;
+  z-index: -2;
+}
+
+/* Vignette for deep tunnel feeling */
+.tunnel-vignette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, transparent 30%, #03030a 80%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes gridMoveFloor {
+  0% { transform: rotateX(75deg) translateZ(0) translateY(0); }
+  100% { transform: rotateX(75deg) translateZ(0) translateY(50px); }
+}
+
+@keyframes gridMoveCeiling {
+  0% { transform: rotateX(-75deg) translateZ(0) translateY(0); }
+  100% { transform: rotateX(-75deg) translateZ(0) translateY(-50px); }
 }
 
 /* ── Glassmorphism card ────────────────────────────────── */
 @layer components {
   .glass-card {
-    @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    @apply bg-black/60 backdrop-blur-md border border-cyan-500/40 rounded-xl relative overflow-hidden;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2), inset 0 0 15px rgba(6, 182, 212, 0.1);
+  }
+
+  .glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, #06b6d4, transparent);
+    animation: scanline 4s linear infinite;
   }
 
   .glass-card-hover {
-    @apply glass-card transition-all duration-300 hover:border-slate-600/70 hover:bg-slate-800/80;
+    @apply glass-card transition-all duration-300 hover:border-cyan-400 hover:bg-black/80 hover:shadow-[0_0_25px_rgba(6,182,212,0.4)];
+  }
+
+  @keyframes scanline {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   .stat-value {
