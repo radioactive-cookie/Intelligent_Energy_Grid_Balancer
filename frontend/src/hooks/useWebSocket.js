@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_URL =
-  import.meta.env.VITE_WS_URL ||
-  'wss://intelligent-energy-grid-balancer-fdxg.onrender.com/ws';
+function getWsUrl() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws`;
+}
+
+const WS_URL = getWsUrl();
 
 // 3s reconnect delay is intentionally shorter than the 5s backend broadcast interval
 // so the client re-establishes the connection before the next update is missed.
@@ -81,6 +85,7 @@ export function useWebSocket() {
 
       ws.onerror = () => {
         if (unmounted.current) return;
+        console.error('[WebSocket] Connection error:', WS_URL);
         setError('WebSocket connection error');
       };
 
@@ -90,6 +95,7 @@ export function useWebSocket() {
         reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
       };
     } catch (err) {
+      console.error('[WebSocket] Failed to create connection:', err);
       setError(err.message);
       reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
     }

@@ -1,15 +1,20 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://intelligent-energy-grid-balancer-fdxg.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    console.error(`[API] Request failed for ${path}:`, err);
+    throw err;
   }
-  return res.json();
 }
 
 export const generateEnergy = () => request('/energy/total');

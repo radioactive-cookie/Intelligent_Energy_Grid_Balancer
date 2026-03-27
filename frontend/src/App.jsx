@@ -84,8 +84,8 @@ export default function App() {
         timestamp: data.timestamp ?? new Date().toISOString(),
       });
       setLastUpdated(new Date());
-    } catch {
-      // silently handle polling errors
+    } catch (err) {
+      console.error('[App] Grid status fetch failed:', err.message);
     } finally {
       setIsLoading(false);
     }
