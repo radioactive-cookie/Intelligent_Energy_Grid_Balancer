@@ -1,7 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://intelligent-energy-grid-balancer-fdxg.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://intelligent-energy-grid-balancer-fdxg.onrender.com';
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
@@ -12,25 +12,16 @@ async function request(path, options = {}) {
   return res.json();
 }
 
-export const generateEnergy = (hour) => {
-  const query = hour !== undefined ? `?hour=${hour}` : '';
-  return request(`/generate-energy${query}`);
-};
+export const generateEnergy = () => request('/energy/total');
 
-export const predictDemand = (hour) => {
-  const query = hour !== undefined ? `?hour=${hour}` : '';
-  return request(`/predict-demand${query}`);
-};
+export const predictDemand = (hours = 24) =>
+  request(`/predict/demand?hours=${hours}`, { method: 'POST' });
 
-export const balanceGrid = (supply, demand, hour) =>
-  request('/balance-grid', {
-    method: 'POST',
-    body: JSON.stringify({ supply, demand, hour }),
-  });
+export const balanceGrid = () => request('/balance/run', { method: 'POST' });
 
-export const getGridStatus = () => request('/balance-grid');
+export const getGridStatus = () => request('/grid/status');
 
-export const getBatteryStatus = () => request('/battery-status');
+export const getBatteryStatus = () => request('/battery/status');
 
 export const resetBattery = () =>
-  request('/battery-status/reset', { method: 'POST' });
+  request('/simulate/reset-state', { method: 'POST' });

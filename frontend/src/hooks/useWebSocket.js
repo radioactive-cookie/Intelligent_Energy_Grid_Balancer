@@ -33,8 +33,46 @@ export function useWebSocket() {
         if (unmounted.current) return;
         try {
           const parsed = JSON.parse(event.data);
+          // Support both the legacy GRID_UPDATE type and the backend's metrics_update type
           if (parsed.type === 'GRID_UPDATE') {
             setData(parsed.data);
+          } else if (parsed.type === 'metrics_update' && parsed.data) {
+            const m = parsed.data;
+            const battSoc = m.battery_soc ?? 0;
+            setData({
+              energy: {
+                total: m.total_generation ?? 0,
+                solar: 0,
+                wind: 0,
+              },
+              demand: {
+                actual: m.total_demand ?? 0,
+                predicted: m.total_demand ?? 0,
+                pattern: 'off-peak',
+                hour: new Date().getHours(),
+              },
+              battery: {
+                percentage: battSoc,
+                level: battSoc * 5,
+                capacity: 500,
+                isCharging: (m.total_generation ?? 0) > (m.total_demand ?? 0),
+                isDraining: (m.total_generation ?? 0) < (m.total_demand ?? 0),
+                chargingRate: Math.abs((m.total_generation ?? 0) - (m.total_demand ?? 0)),
+              },
+              grid: {
+                gridStatus:
+                  m.grid_stability_score >= 80
+                    ? 'BALANCED'
+                    : m.grid_stability_score >= 50
+                    ? 'DEFICIT'
+                    : 'CRITICAL',
+                efficiency: m.grid_stability_score ?? 0,
+                action: 'balanced',
+                delta: (m.total_generation ?? 0) - (m.total_demand ?? 0),
+                alerts: [],
+              },
+              timestamp: m.timestamp,
+            });
           }
         } catch {
           // ignore malformed messages
