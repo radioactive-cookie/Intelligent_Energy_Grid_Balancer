@@ -1,0 +1,31 @@
+# Docker Compose for Intelligent Energy Grid Balancer
+
+version: '3.8'
+
+services:
+  grid-balancer:
+    build: .
+    container_name: intelligent-grid-balancer
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - grid-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  grid-network:
+    driver: bridge
