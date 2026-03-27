@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const WS_URL =
   import.meta.env.VITE_WS_URL ||
   (typeof window !== 'undefined'
-    ? `ws://${window.location.hostname}:3001`
+    ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:3001`
     : 'ws://localhost:3001');
 
 // 3s reconnect delay is intentionally shorter than the 5s backend broadcast interval
