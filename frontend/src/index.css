@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global resets ─────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-900 text-slate-100 font-sans antialiased;
+  background-image: radial-gradient(ellipse at 20% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
+  min-height: 100vh;
+}
+
+/* ── Glassmorphism card ────────────────────────────────── */
+@layer components {
+  .glass-card {
+    @apply bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:border-slate-600/70 hover:bg-slate-800/80;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold tabular-nums;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium uppercase tracking-widest text-slate-400;
+  }
+}
+
+/* ── Gradient text ─────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-solar {
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-wind {
+  background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Animated glow border ──────────────────────────────── */
+.glow-green {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 40px rgba(16, 185, 129, 0.1);
+}
+
+.glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.1);
+}
+
+.glow-yellow {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.4), 0 0 40px rgba(245, 158, 11, 0.1);
+}
+
+.glow-blue {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.1);
+}
+
+/* ── Progress bar ──────────────────────────────────────── */
+.progress-track {
+  @apply w-full h-2 rounded-full bg-slate-700/60 overflow-hidden;
+}
+
+.progress-fill {
+  @apply h-full rounded-full transition-all duration-700 ease-out;
+}
+
+/* ── Custom scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500;
+}
+
+/* ── Alert animations ──────────────────────────────────── */
+@keyframes alertPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.alert-critical {
+  animation: alertPulse 1.5s ease-in-out infinite;
+}
+
+/* ── Battery fill animation ────────────────────────────── */
+@keyframes batteryFill {
+  from { width: 0%; }
+  to { width: var(--battery-level); }
+}
+
+.battery-fill-animate {
+  animation: batteryFill 1s ease-out forwards;
+}
+
+/* ── Data update flash ─────────────────────────────────── */
+@keyframes dataFlash {
+  0% { background-color: rgba(16, 185, 129, 0.0); }
+  30% { background-color: rgba(16, 185, 129, 0.15); }
+  100% { background-color: rgba(16, 185, 129, 0.0); }
+}
+
+.data-updated {
+  animation: dataFlash 0.8s ease-out;
+}
