@@ -46,23 +46,44 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       const data = await getGridStatus();
+      // Map the backend dashboard response to the frontend state structure
+      const surplus = data.surplus ?? 0;
+      const deficit = data.deficit ?? 0;
+      const gridStatusMap = {
+        stable: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
+        warning: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
+        critical: 'CRITICAL',
+      };
       setGridData({
-        energy: data.energy,
-        demand: data.demand,
-        battery: data.battery,
-        grid: data,
-        timestamp: data.timestamp,
+        energy: {
+          total: data.total_generation ?? 0,
+          solar: data.solar_generation ?? 0,
+          wind: data.wind_generation ?? 0,
+        },
+        demand: {
+          actual: data.demand ?? 0,
+          predicted: data.demand ?? 0,
+          pattern: 'off-peak',
+          hour: new Date().getHours(),
+        },
+        battery: {
+          percentage: data.battery_percent ?? 0,
+          level: data.battery_current ?? 0,
+          capacity: data.battery_capacity ?? 1000,
+          isCharging: surplus > 0,
+          isDraining: deficit > 0,
+          chargingRate: Math.abs(data.imbalance ?? 0),
+        },
+        grid: {
+          gridStatus: gridStatusMap[data.status] ?? 'BALANCED',
+          efficiency: data.efficiency ?? 0,
+          action: 'balanced',
+          delta: data.imbalance ?? 0,
+          alerts: [],
+        },
+        timestamp: data.timestamp ?? new Date().toISOString(),
       });
       setLastUpdated(new Date());
-      if (data.alerts?.length > 0) {
-        setAlerts((prev) => {
-          const incoming = data.alerts.map((a) => ({
-            ...a,
-            id: `${a.type}-${Date.now()}-${Math.random()}`,
-          }));
-          return [...incoming, ...prev].slice(0, 20);
-        });
-      }
     } catch {
       // silently handle polling errors
     } finally {
