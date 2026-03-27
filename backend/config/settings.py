@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     
     # Server
     server_host: str = os.getenv("SERVER_HOST", "0.0.0.0")
-    server_port: int = int(os.getenv("SERVER_PORT", 8000))
+    server_port: int = int(os.getenv("SERVER_PORT", 10000))
     
     # Grid Configuration
     grid_nominal_frequency: float = 50.0
