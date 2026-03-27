@@ -99,28 +99,31 @@ export default function DemandSupplyChart({ gridData }) {
             <Line
               type="monotone"
               dataKey="Supply"
-              stroke="#10b981"
-              strokeWidth={2}
+              stroke="#22d3ee"
+              strokeWidth={3}
               dot={false}
-              activeDot={{ r: 4, fill: '#10b981' }}
+              activeDot={{ r: 6, fill: '#22d3ee' }}
+              style={{ filter: 'drop-shadow(0px 0px 6px rgba(34,211,238,0.8))' }}
             />
             <Line
               type="monotone"
               dataKey="Demand"
-              stroke="#f97316"
-              strokeWidth={2}
+              stroke="#f472b6"
+              strokeWidth={3}
               dot={false}
-              activeDot={{ r: 4, fill: '#f97316' }}
+              activeDot={{ r: 6, fill: '#f472b6' }}
+              style={{ filter: 'drop-shadow(0px 0px 6px rgba(244,114,182,0.8))' }}
             />
             <Line
               type="monotone"
               dataKey="Battery"
               stroke="#3b82f6"
-              strokeWidth={1.5}
+              strokeWidth={2}
               strokeDasharray="5 3"
               dot={false}
               activeDot={{ r: 4, fill: '#3b82f6' }}
               yAxisId={0}
+              style={{ filter: 'drop-shadow(0px 0px 4px rgba(59,130,246,0.6))' }}
             />
           </LineChart>
         </ResponsiveContainer>

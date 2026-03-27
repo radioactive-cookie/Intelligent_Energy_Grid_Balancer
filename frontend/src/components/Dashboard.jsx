@@ -9,19 +9,19 @@ import AlertsPanel from './AlertsPanel';
 
 function StatCard({ icon: Icon, label, value, unit, color, sublabel }) {
   return (
-    <div className="glass-card p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="stat-label">{label}</span>
-        <div className={`p-2 rounded-lg ${color}`}>
-          <Icon className="w-4 h-4" />
+    <div className="glass-card glass-card-hover p-6 flex flex-col gap-3 group">
+      <div className="flex items-center justify-between z-10">
+        <span className="stat-label text-cyan-500 group-hover:text-cyan-400 group-hover:drop-shadow-[0_0_5px_rgba(34,211,238,0.8)] transition-all">{label}</span>
+        <div className={`p-2 rounded-lg ${color} bg-opacity-20 backdrop-blur-md border border-white/5`}>
+          <Icon className="w-5 h-5 animate-pulse" />
         </div>
       </div>
-      <div>
+      <div className="z-10">
         <div className="flex items-end gap-1">
-          <span className="stat-value">{value}</span>
-          <span className="text-sm text-slate-400 mb-1">{unit}</span>
+          <span className="stat-value font-mono text-4xl text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] group-hover:scale-105 origin-left transition-transform">{value}</span>
+          <span className="text-sm font-bold text-cyan-400 mb-1 tracking-widest uppercase">{unit}</span>
         </div>
-        {sublabel && <p className="text-xs text-slate-500 mt-1">{sublabel}</p>}
+        {sublabel && <p className="text-xs font-mono text-slate-400 mt-2 tracking-wide opacity-80 group-hover:opacity-100">{sublabel}</p>}
       </div>
     </div>
   );
