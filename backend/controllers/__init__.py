@@ -430,8 +430,14 @@ class MetricsController:
             },
             "dataSource": weather_generation.get("dataSource", "simulated"),
             "rawWeather": weather_generation.get("rawWeather", {}),
+            "weather": {
+                "location": "Bhubaneswar, IN",
+                "solar_radiation": weather_generation.get("rawWeather", {}).get("direct_radiation", 0),
+                "wind_speed": weather_generation.get("rawWeather", {}).get("wind_speed_10m", 0),
+                "cloud_cover": weather_generation.get("rawWeather", {}).get("cloud_cover", 0),
+                "temperature": weather_generation.get("rawWeather", {}).get("temperature_2m", 0)
+            },
             "carbonIntensity": carbon_intensity,
-            # Backward-compatible keys for existing UI mapping.
             "frequency": round(enhanced.get("frequency", 50.0), 3),
             "stability_score": enhanced.get("grid_stability_score", 100),
             "total_gen": total_supply,

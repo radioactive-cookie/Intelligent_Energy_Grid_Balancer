@@ -148,9 +148,14 @@ export default function App() {
           carbonIntensity: data.carbonIntensity ?? null,
         },
         timestamp: data.timestamp ?? new Date().toISOString(),
+<<<<<<< HEAD
       };
       setRawGridData(mappedData);
       setGridData(applyScenario(mappedData));
+=======
+        weather: data.weather || { location: 'Bhubaneswar, IN', solar_radiation: 0, wind_speed: 0 }
+      });
+>>>>>>> 247310a (🌐 REAL-WORLD DATA: Integrated Bhubaneswar live weather telemetry & Optimized Vercel deployment folder structure)
       setLastUpdated(new Date());
     } catch (err) {
       console.error('[App] Grid status fetch failed:', err.message);
@@ -214,9 +219,17 @@ export default function App() {
                 <h1 className="text-lg sm:text-xl font-bold gradient-text leading-tight">
                   Intelligent Energy Grid Balancer
                 </h1>
-                <p className="text-xs text-slate-500 hidden sm:block">
-                  Real-time renewable energy management
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <p className="text-[10px] uppercase tracking-tighter text-cyan-400 font-semibold">
+                    Live: {gridData?.weather?.location || 'Bhubaneswar, IN'}
+                  </p>
+                  {gridData?.weather && (
+                    <span className="text-[10px] text-slate-500 border-l border-slate-800 pl-2">
+                      {Math.round(gridData.weather.solar_radiation)} W/m² • {Math.round(gridData.weather.wind_speed)} km/h
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

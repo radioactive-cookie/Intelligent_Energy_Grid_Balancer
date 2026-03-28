@@ -77,13 +77,14 @@ export function useWebSocket() {
                     ? 'DEFICIT'
                     : 'CRITICAL',
                 efficiency: m.stability_score ?? 0,
-                  action: 'balanced',
-                  delta: (m.total_gen ?? 0) - (m.total_demand ?? 0),
-                  alerts: m.alerts?.active || [],
-                  carbonIntensity: m.carbonIntensity ?? null,
-                },
-                timestamp: m.timestamp,
-              });
+                action: 'balanced',
+                delta: (m.total_gen ?? 0) - (m.total_demand ?? 0),
+                alerts: m.alerts?.active || [],
+                carbonIntensity: m.carbonIntensity ?? null,
+              },
+              timestamp: m.timestamp,
+              weather: m.weather || { location: 'Bhubaneswar, IN', solar_radiation: 0, wind_speed: 0 }
+            });
           }
         } catch {
           // ignore malformed messages

@@ -1,5 +1,5 @@
 """Dashboard Calculator Service - Computes real dashboard values from simulation inputs"""
-from typing import Dict
+from typing import Dict, Optional
 from dataclasses import dataclass
 from utils import get_logger
 
@@ -13,7 +13,9 @@ class DashboardInputs:
     wind_mw: float   # Wind generation in MW
     demand_mw: float  # Demand in MW
     battery_current: float  # Current battery charge in MWh
+    battery_current: float  # Current battery charge in MWh
     battery_capacity: float  # Battery capacity in MWh
+    weather_data: Optional[Dict] = None  # Live weather metadata
 
 
 class DashboardCalculator:
@@ -103,7 +105,8 @@ class DashboardCalculator:
                 "deficit": round(deficit, 2),
                 "imbalance": round(total_generation - inputs.demand_mw, 2),
                 "solar_generation": round(inputs.solar_mw, 2),
-                "wind_generation": round(inputs.wind_mw, 2)
+                "wind_generation": round(inputs.wind_mw, 2),
+                "weather": inputs.weather_data or {"location": "Bhubaneswar, IN", "solar_radiation": 0, "wind_speed": 0}
             }
             
         except Exception as e:
@@ -122,14 +125,34 @@ class SimulationState:
             wind_mw=200.0,
             demand_mw=350.0,
             battery_current=350.0,
-            battery_capacity=500.0
+            battery_capacity=500.0,
+            weather_data={"location": "Bhubaneswar, IN", "solar_radiation": 800, "wind_speed": 15}
         )
         self.last_dashboard = {}
         self._update_dashboard()
+
+    def update_from_weather(self, weather: Dict):
+        """Scale generation based on real world radiation and wind speed"""
+        # Solar scaling: 1000 W/m2 = 100% of 250MW capacity
+        irradiance = weather.get("solar_radiation", 0)
+        solar_capacity = 250.0 
+        new_solar = (irradiance / 1000.0) * solar_capacity
+        
+        # Wind scaling: 45 km/h = 100% of 300MW capacity
+        wind_speed = weather.get("wind_speed", 0)
+        wind_capacity = 300.0
+        new_wind = (wind_speed / 45.0) * wind_capacity
+        
+        # Clamp values
+        new_solar = max(5.0, min(new_solar, solar_capacity)) # Always at least 5MW during day
+        new_wind = max(10.0, min(new_wind, wind_capacity))
+        
+        self.inputs.weather_data = weather
+        return self.update_inputs(solar_mw=new_solar, wind_mw=new_wind)
     
-    def update_inputs(self, solar_mw: float = None, wind_mw: float = None, 
-                     demand_mw: float = None, battery_current: float = None, 
-                     battery_capacity: float = None) -> Dict:
+    def update_inputs(self, solar_mw: Optional[float] = None, wind_mw: Optional[float] = None, 
+                     demand_mw: Optional[float] = None, battery_current: Optional[float] = None, 
+                     battery_capacity: Optional[float] = None) -> Dict:
         """
         Update simulation inputs and recalculate dashboard.
         Only provided parameters are updated.

@@ -11,6 +11,8 @@ from config import get_settings
 from routes import router
 from utils import setup_logging, get_logger
 from controllers import GridController, MetricsController, AlertController
+from services.weather_service import weather_service
+from services import simulation_state
 
 logger = None
 settings = None
@@ -73,6 +75,16 @@ async def monitor_and_broadcast():
         while True:
             if manager.active_connections:
                 try:
+                    # Sync with real-world weather data for Bhubaneswar every ~5 mins (approx 60 cycles)
+                    if not hasattr(monitor_and_broadcast, "weather_counter"):
+                        monitor_and_broadcast.weather_counter = 0
+                    
+                    if monitor_and_broadcast.weather_counter % 60 == 0:
+                        weather_data = await weather_service.get_current_weather()
+                        simulation_state.update_from_weather(weather_data)
+                    
+                    monitor_and_broadcast.weather_counter += 1
+
                     metrics = MetricsController.get_system_metrics()
                     await manager.broadcast({
                         "type": "metrics_update",

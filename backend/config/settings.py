@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     monitoring_interval_seconds: int = 5
 
     # Real weather integration (Open-Meteo)
-    weather_latitude: float = float(os.getenv("WEATHER_LATITUDE", "28.6139"))
-    weather_longitude: float = float(os.getenv("WEATHER_LONGITUDE", "77.2090"))
+    weather_latitude: float = float(os.getenv("WEATHER_LATITUDE", "20.27"))
+    weather_longitude: float = float(os.getenv("WEATHER_LONGITUDE", "85.83"))
     solar_peak_capacity_kw: float = float(os.getenv("SOLAR_PEAK_CAPACITY_KW", "500"))
     wind_peak_capacity_kw: float = float(os.getenv("WIND_PEAK_CAPACITY_KW", "300"))
     wind_cut_in_speed_ms: float = float(os.getenv("WIND_CUT_IN_SPEED_MS", "3"))
