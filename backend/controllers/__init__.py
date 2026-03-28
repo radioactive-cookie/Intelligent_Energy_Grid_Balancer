@@ -423,6 +423,12 @@ class MetricsController:
             "grid_status": dashboard.get("status", "stable"),
             "houses": 0,
             "alerts": alerts,
+            "sources": {
+                "solar": dashboard.get("solar_generation", 0.0),
+                "wind": dashboard.get("wind_generation", 0.0),
+            },
+            "dataSource": "real" if simulation_state.inputs.weather_data else "simulated",
+            "rawWeather": simulation_state.inputs.weather_data or {},
             "weather": weather,
             "carbonIntensity": carbon_intensity,
             "frequency": dashboard.get("frequency", 50.0),

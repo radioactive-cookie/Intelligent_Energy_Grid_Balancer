@@ -1,15 +1,7 @@
 {
-<<<<<<< HEAD
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-=======
-  "framework": "vite",
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "routes": [
-    { "src": "/(.*)", "dest": "/index.html" }
->>>>>>> 247310a (🌐 REAL-WORLD DATA: Integrated Bhubaneswar live weather telemetry & Optimized Vercel deployment folder structure)
   ]
 }
