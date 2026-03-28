@@ -81,6 +81,57 @@ def test_api_balance_grid_has_enriched_fields():
     assert "actual" in response["demand"]
 
 
+def test_api_simulate_scenario_contract_and_calculations():
+    request = app_main.ScenarioSimulationRequest(
+        demandMultiplier=2.0,
+        loadSheddingPercent=20,
+        hour=14,
+    )
+    response = asyncio.run(app_main.post_api_simulate_scenario(request))
+
+    assert response["scenario"]["demandMultiplier"] == 2.0
+    assert response["scenario"]["hour"] == 14
+
+    assert "supply" in response
+    assert "demand" in response
+    assert "battery" in response
+    assert "zones" in response
+    assert "strategy" in response
+
+    expected_scaled = round(app_main.BASE_MAX_LOAD * 2.0, 1)
+    assert response["demand"]["scaled"] == expected_scaled
+
+    industrial = round(expected_scaled * 0.4, 1)
+    commercial = round(expected_scaled * 0.3, 1)
+    industrial_shed = round(industrial * 0.2, 1)
+    commercial_shed = round(commercial * 0.1, 1)
+    total_shed = round(industrial_shed + commercial_shed, 1)
+    after_shedding = round(expected_scaled - total_shed, 1)
+
+    assert response["zones"]["industrial"]["demandKw"] == industrial
+    assert response["zones"]["industrial"]["shedKw"] == industrial_shed
+    assert response["zones"]["commercial"]["demandKw"] == commercial
+    assert response["zones"]["commercial"]["shedKw"] == commercial_shed
+    assert response["demand"]["loadShedKw"] == total_shed
+    assert response["demand"]["afterShedding"] == after_shedding
+
+    expected_gap = round(after_shedding - response["supply"]["total"], 1)
+    assert response["gap"] == expected_gap
+
+    if expected_gap > 0:
+        assert response["gridStatus"] == "DEFICIT"
+        assert response["battery"]["netDrainRateKw"] == expected_gap
+        assert response["strategy"]["label"] in {
+            "MINOR_DEFICIT_BATTERY_ONLY",
+            "LOAD_SHEDDING_AND_BATTERY",
+            "CRITICAL_SHED_ALL",
+        }
+    else:
+        assert response["gridStatus"] == "SURPLUS"
+        assert response["battery"]["netDrainRateKw"] == 0
+        assert response["strategy"]["label"] == "SURPLUS_STORE"
+
+
 def test_history_buffer_is_rolling():
     app_main.gridHistory.clear()
     for _ in range(app_main.MAX_HISTORY + 5):
@@ -99,5 +150,6 @@ if __name__ == "__main__":
     test_api_predict_demand_has_predicted_and_actual()
     test_api_battery_status_has_new_fields()
     test_api_balance_grid_has_enriched_fields()
+    test_api_simulate_scenario_contract_and_calculations()
     test_history_buffer_is_rolling()
     print("✅ Frontend contract tests passed")

@@ -3,10 +3,12 @@ from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 import asyncio
 import os
 import logging
 import random
+import math
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -24,6 +26,33 @@ DEMAND_NOISE_SPAN_KW = DEMAND_NOISE_OFFSET_KW * 2
 IMBALANCE_THRESHOLD = float(os.getenv("IMBALANCE_THRESHOLD", "20"))
 MAX_HISTORY = 20
 gridHistory = []
+BASE_MAX_LOAD = float(os.getenv("MAX_BASE_LOAD", "600"))
+MAX_SOLAR_OUTPUT = float(os.getenv("MAX_SOLAR_OUTPUT", "500"))
+MAX_WIND_OUTPUT = float(os.getenv("MAX_WIND_OUTPUT", "300"))
+
+
+class ScenarioSimulationRequest(BaseModel):
+    demandMultiplier: float = Field(1.0, ge=0.5, le=3.0)
+    loadSheddingPercent: float = Field(0.0, ge=0.0, le=40.0)
+    hour: int = Field(default_factory=lambda: datetime.utcnow().hour, ge=0, le=23)
+
+
+def _round1(value: float) -> float:
+    return round(float(value), 1)
+
+
+def _round2(value: float) -> float:
+    return round(float(value), 2)
+
+
+def _supply_for_hour(hour: int) -> tuple[float, float]:
+    daylight_factor = max(0.0, math.sin(((hour - 6) / 12) * math.pi))
+    solar = _round1(MAX_SOLAR_OUTPUT * daylight_factor * 0.85)
+
+    wind_base = 0.45 + 0.2 * math.cos(((hour + 2) / 24) * 2 * math.pi)
+    wind = _round1(MAX_WIND_OUTPUT * max(0.2, min(wind_base, 0.95)))
+
+    return solar, wind
 
 
 def _get_pattern_for_hour(hour: int) -> str:
@@ -327,6 +356,142 @@ async def get_api_balance_grid(hour: Optional[int] = None):
 @app.post("/api/balance-grid")
 async def post_api_balance_grid(hour: Optional[int] = None):
     return await get_api_balance_grid(hour)
+
+
+@app.post("/api/simulate-scenario")
+@app.post("/simulate-scenario")
+async def post_api_simulate_scenario(payload: ScenarioSimulationRequest):
+    hour = payload.hour
+    demand_multiplier = payload.demandMultiplier
+    load_shedding_percent = payload.loadSheddingPercent
+
+    solar, wind = _supply_for_hour(hour)
+    total_supply = _round1(solar + wind)
+
+    scaled_demand = _round1(BASE_MAX_LOAD * demand_multiplier)
+    industrial_demand = _round1(scaled_demand * 0.4)
+    commercial_demand = _round1(scaled_demand * 0.3)
+    residential_demand = _round1(scaled_demand * 0.3)
+
+    industrial_shed = _round1(industrial_demand * (load_shedding_percent / 100))
+    commercial_shed_percent = _round1(load_shedding_percent / 2)
+    commercial_shed = _round1(commercial_demand * (commercial_shed_percent / 100))
+    total_shed = _round1(industrial_shed + commercial_shed)
+    demand_after_shedding = _round1(scaled_demand - total_shed)
+    gap = _round1(demand_after_shedding - total_supply)
+
+    battery_current = _round1(float(simulation_engine.config.battery_current))
+    battery_capacity = _round1(float(simulation_engine.config.battery_capacity))
+    battery_percent = _round1((battery_current / battery_capacity * 100) if battery_capacity > 0 else 0.0)
+    net_drain = _round1(gap if gap > 0 else 0.0)
+
+    survival_hours = None
+    survival_hours_with_solar = None
+    if gap > 0:
+        survival_hours = _round2(battery_current / max(gap, 1))
+        survival_hours_with_solar = _round2(
+            battery_current / max(gap - solar * 0.3, 1)
+        )
+
+    if gap <= 0:
+        strategy_label = "SURPLUS_STORE"
+    elif gap <= 100:
+        strategy_label = "MINOR_DEFICIT_BATTERY_ONLY"
+    elif gap <= 400:
+        strategy_label = "LOAD_SHEDDING_AND_BATTERY"
+    else:
+        strategy_label = "CRITICAL_SHED_ALL"
+
+    if strategy_label == "SURPLUS_STORE":
+        steps = [
+            {"order": 1, "action": "Maximise renewable harvest", "detail": f"Solar + wind generation: {_round1(total_supply)} kW"},
+            {"order": 2, "action": "Store excess energy", "detail": f"Charge battery with {_round1(abs(gap))} kW surplus"},
+            {"order": 3, "action": "Prepare reserve margin", "detail": "Maintain charge for next peak period"},
+        ]
+    elif strategy_label == "MINOR_DEFICIT_BATTERY_ONLY":
+        steps = [
+            {"order": 1, "action": "Maximise renewable harvest", "detail": f"Solar + wind at current output: {_round1(total_supply)} kW"},
+            {"order": 2, "action": "Draw from battery reserve", "detail": f"Cover net deficit of {_round1(gap)} kW"},
+            {"order": 3, "action": "Reassess in 15 minutes", "detail": "No load shedding needed at this deficit level"},
+        ]
+    elif strategy_label == "LOAD_SHEDDING_AND_BATTERY":
+        steps = [
+            {"order": 1, "action": "Maximise renewable harvest", "detail": f"Solar + wind at full output: {_round1(total_supply)} kW"},
+            {"order": 2, "action": "Industrial demand response", "detail": f"Shed {load_shedding_percent:.0f}% from industrial zone: -{_round1(industrial_shed)} kW"},
+            {"order": 3, "action": "Commercial demand response", "detail": f"Shed {commercial_shed_percent:.0f}% from commercial zone: -{_round1(commercial_shed)} kW"},
+            {"order": 4, "action": "Draw from battery reserve", "detail": f"Net deficit {_round1(gap)} kW covered for {_round1(survival_hours) if survival_hours is not None else '0'} hrs"},
+            {"order": 5, "action": "Schedule off-peak recharge", "detail": "Recharge 00:00–05:00 at max rate"},
+        ]
+    else:
+        steps = [
+            {"order": 1, "action": "Activate emergency demand response", "detail": f"Industrial shed -{_round1(industrial_shed)} kW, commercial shed -{_round1(commercial_shed)} kW"},
+            {"order": 2, "action": "Draw maximum battery support", "detail": f"Battery draw {_round1(net_drain)} kW at critical level"},
+            {"order": 3, "action": "Trigger critical load protection", "detail": "Protect residential essentials and prepare contingency imports"},
+        ]
+
+    alerts = []
+    if gap > 0:
+        alerts.append("DEFICIT")
+        alerts.append("BATTERY_DRAW_ACTIVE")
+        if gap > 400:
+            alerts.append("CRITICAL_DEFICIT")
+    else:
+        alerts.append("SURPLUS")
+
+    scenario_timestamp = datetime.utcnow().replace(
+        hour=hour, minute=0, second=0, microsecond=0
+    ).isoformat() + "Z"
+
+    return {
+        "scenario": {
+            "demandMultiplier": _round1(demand_multiplier),
+            "hour": hour,
+        },
+        "supply": {
+            "solar": _round1(solar),
+            "wind": _round1(wind),
+            "total": _round1(total_supply),
+        },
+        "demand": {
+            "base": _round1(BASE_MAX_LOAD),
+            "scaled": _round1(scaled_demand),
+            "afterShedding": _round1(demand_after_shedding),
+            "loadShedKw": _round1(total_shed),
+        },
+        "gap": _round1(gap),
+        "gridStatus": "DEFICIT" if gap > 0 else "SURPLUS",
+        "battery": {
+            "currentKwh": battery_current,
+            "capacityKwh": battery_capacity,
+            "percentCharged": battery_percent,
+            "netDrainRateKw": _round1(net_drain),
+            "survivalHours": survival_hours,
+            "survivalHoursWithSolar": survival_hours_with_solar,
+        },
+        "zones": {
+            "industrial": {
+                "demandKw": _round1(industrial_demand),
+                "shedKw": _round1(industrial_shed),
+                "shedPercent": _round1(load_shedding_percent),
+            },
+            "commercial": {
+                "demandKw": _round1(commercial_demand),
+                "shedKw": _round1(commercial_shed),
+                "shedPercent": _round1(commercial_shed_percent),
+            },
+            "residential": {
+                "demandKw": _round1(residential_demand),
+                "shedKw": 0.0,
+                "shedPercent": 0.0,
+            },
+        },
+        "strategy": {
+            "label": strategy_label,
+            "steps": steps,
+        },
+        "alerts": alerts,
+        "timestamp": scenario_timestamp,
+    }
 
 
 # ============================================
