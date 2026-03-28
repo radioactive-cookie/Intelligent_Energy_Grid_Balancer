@@ -1,9 +1,10 @@
 """Real weather data integration with caching and simulation fallback."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 from urllib import request, parse
+from urllib.error import URLError, HTTPError
 import json
 
 from config import get_settings
@@ -25,7 +26,7 @@ class RealDataFetcher:
         return (
             self._cache is not None
             and self._cached_at is not None
-            and (datetime.utcnow() - self._cached_at) < self.cache_ttl
+            and (datetime.now(timezone.utc) - self._cached_at) < self.cache_ttl
         )
 
     def _simulate_fallback(self, simulated_inputs: Dict[str, float]) -> Dict[str, Any]:
@@ -50,7 +51,9 @@ class RealDataFetcher:
         solar_capacity_kw = float(self.settings.solar_peak_capacity_kw)
         wind_capacity_kw = float(self.settings.wind_peak_capacity_kw)
 
-        solar_factor = self._clamp(direct_radiation / 1000.0, 0.0, 1.0) * (1.0 - self._clamp(cloud_cover, 0.0, 100.0) / 100.0)
+        radiation_factor = self._clamp(direct_radiation / 1000.0, 0.0, 1.0)
+        cloud_factor = 1.0 - (self._clamp(cloud_cover, 0.0, 100.0) / 100.0)
+        solar_factor = radiation_factor * cloud_factor
         solar_kw = solar_capacity_kw * solar_factor
 
         # Simple turbine curve approximation between cut-in and rated speed.
@@ -98,8 +101,14 @@ class RealDataFetcher:
                 },
             }
             self._cache = result
-            self._cached_at = datetime.utcnow()
+            self._cached_at = datetime.now(timezone.utc)
             return result
+        except HTTPError as exc:
+            logger.warning(f"Open-Meteo HTTP error {exc.code}; using simulation fallback")
+            return self._simulate_fallback(simulated_inputs)
+        except URLError as exc:
+            logger.warning(f"Open-Meteo network error; using simulation fallback: {exc.reason}")
+            return self._simulate_fallback(simulated_inputs)
         except Exception as exc:
             logger.warning(f"Open-Meteo fetch failed; using simulation fallback: {exc}")
             return self._simulate_fallback(simulated_inputs)

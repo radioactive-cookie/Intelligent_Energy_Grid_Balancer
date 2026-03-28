@@ -144,6 +144,11 @@ def test_metrics_schema_extensions():
     assert "solar" in metrics["sources"]
     assert "wind" in metrics["sources"]
     assert metrics["dataSource"] in ("real", "simulated")
+    assert isinstance(metrics["sources"]["solar"], (int, float))
+    assert isinstance(metrics["sources"]["wind"], (int, float))
+    assert isinstance(metrics["rawWeather"], dict)
+    assert isinstance(metrics["carbonIntensity"], (int, float))
+    assert 0 <= metrics["battery_level"] <= 100
     print("✓ Metrics schema includes data source, weather, and carbon fields")
 
 if __name__ == "__main__":

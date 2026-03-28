@@ -4,6 +4,12 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { getGridStatus } from './services/api';
 import Dashboard from './components/Dashboard';
 
+function getGridStatusFromDelta(delta) {
+  if (delta > 0) return 'SURPLUS';
+  if (delta < 0) return 'DEFICIT';
+  return 'BALANCED';
+}
+
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [gridData, setGridData] = useState(null);
@@ -44,7 +50,7 @@ export default function App() {
     const total = solar + wind;
     const delta = total - demandActual;
     const battery = base.battery || {};
-    const nextStatus = delta > 0 ? 'SURPLUS' : delta < 0 ? 'DEFICIT' : 'BALANCED';
+    const nextStatus = getGridStatusFromDelta(delta);
 
     return {
       ...base,
@@ -106,11 +112,10 @@ export default function App() {
       const delta = supply - demandActual;
       const surplus = Math.max(0, delta);
       const deficit = Math.max(0, -delta);
-      const gridStatusMap = {
-        stable: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
-        warning: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
-        critical: 'CRITICAL',
-      };
+      const nextGridStatus =
+        (data.status ?? data.grid_status) === 'critical'
+          ? 'CRITICAL'
+          : getGridStatusFromDelta(delta);
       const mappedData = {
         energy: {
           total: supply,
@@ -135,7 +140,7 @@ export default function App() {
         },
         grid: {
           frequency: data.frequency ?? 50.0,
-          gridStatus: gridStatusMap[data.status ?? data.grid_status] ?? 'BALANCED',
+          gridStatus: nextGridStatus,
           efficiency: data.efficiency ?? 0,
           action: 'balanced',
           delta,

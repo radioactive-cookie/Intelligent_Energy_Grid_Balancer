@@ -397,6 +397,8 @@ class MetricsController:
     def _build_enhanced_metrics() -> Dict:
         current_inputs = simulation_state.get_inputs()
         weather_generation = real_data_fetcher.get_generation(current_inputs)
+        # Demand intentionally comes from operator-configured simulation inputs while
+        # generation can switch between real-weather and simulated sources.
         enhanced_inputs = DashboardInputs(
             solar_mw=weather_generation["solar_mw"],
             wind_mw=weather_generation["wind_mw"],

@@ -1,9 +1,10 @@
 """Carbon intensity integration with graceful fallback."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from urllib import request
+from urllib.error import HTTPError, URLError
 import json
 
 from config import get_settings
@@ -25,7 +26,7 @@ class CarbonService:
         return (
             self._cached_value is not None
             and self._cached_at is not None
-            and (datetime.utcnow() - self._cached_at) < self.cache_ttl
+            and (datetime.now(timezone.utc) - self._cached_at) < self.cache_ttl
         )
 
     def _fetch_from_electricity_maps(self) -> Optional[float]:
@@ -56,8 +57,17 @@ class CarbonService:
             fetched = self._fetch_from_electricity_maps()
             value = fallback_value if fetched is None else fetched
             self._cached_value = value
-            self._cached_at = datetime.utcnow()
+            self._cached_at = datetime.now(timezone.utc)
             return float(value)
+        except HTTPError as exc:
+            if exc.code in (401, 403):
+                logger.warning("Electricity Maps authentication failed; using fallback carbon intensity")
+            else:
+                logger.warning(f"Electricity Maps HTTP error {exc.code}; using fallback carbon intensity")
+            return fallback_value
+        except URLError as exc:
+            logger.warning(f"Electricity Maps network error; using fallback carbon intensity: {exc.reason}")
+            return fallback_value
         except Exception as exc:
             logger.warning(f"Carbon intensity fetch failed; using fallback: {exc}")
             return fallback_value
