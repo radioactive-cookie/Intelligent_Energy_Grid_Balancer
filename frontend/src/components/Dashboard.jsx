@@ -7,6 +7,7 @@ import DemandSupplyChart from './DemandSupplyChart';
 import EnergySourcesChart from './EnergySourcesChart';
 import AlertsPanel from './AlertsPanel';
 import EnergyPath from './EnergyPath';
+import ScenarioPlanner from './ScenarioPlanner';
 
 function StatCard({ icon: Icon, label, value, unit, color, sublabel }) {
   return (
@@ -164,6 +165,9 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
 
       {/* Alerts */}
       <AlertsPanel alerts={alerts} onDismiss={onDismissAlert} />
+
+      {/* Scenario Planner */}
+      <ScenarioPlanner gridData={gridData} />
     </div>
   );
 }
