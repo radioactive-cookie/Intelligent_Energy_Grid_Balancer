@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 function getWsUrl() {
+  const isSecurePage = window.location.protocol === 'https:';
+  const wsScheme = isSecurePage ? 'wss' : 'ws';
+  const wsProtocol = `${wsScheme}://`;
+  const ensureLeadingSlash = (value) => `/${value.replace(/^\/+/, '')}`;
+
   const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
   if (configuredWsUrl) {
     if (
@@ -10,15 +15,14 @@ function getWsUrl() {
       return configuredWsUrl;
     }
     if (configuredWsUrl.startsWith('http://')) {
-      return configuredWsUrl.replace('http://', 'ws://');
+      return configuredWsUrl.replace(/^http:\/\//, 'ws://');
     }
     if (configuredWsUrl.startsWith('https://')) {
-      return configuredWsUrl.replace('https://', 'wss://');
+      return configuredWsUrl.replace(/^https:\/\//, 'wss://');
     }
-    return configuredWsUrl;
+    return `${wsProtocol}${window.location.host}${ensureLeadingSlash(configuredWsUrl)}`;
   }
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
+  return `${wsProtocol}${window.location.host}/ws`;
 }
 
 const WS_URL = getWsUrl();
