@@ -12,6 +12,16 @@ def _assert_snapshot_shape(snapshot: dict):
     assert "battery" in snapshot
     assert "grid" in snapshot
     assert "timestamp" in snapshot
+    assert "total_supply" in snapshot
+    assert "total_demand" in snapshot
+    assert "battery_level" in snapshot
+    assert "grid_status" in snapshot
+    assert "houses" in snapshot
+    assert "alerts" in snapshot
+    assert "sources" in snapshot
+    assert "dataSource" in snapshot
+    assert "rawWeather" in snapshot
+    assert "carbonIntensity" in snapshot
 
     demand = snapshot["demand"]
     battery = snapshot["battery"]
@@ -36,6 +46,12 @@ def _assert_snapshot_shape(snapshot: dict):
         assert battery["chargingRate"] == 0
 
     assert isinstance(grid["alerts"], list)
+    assert isinstance(snapshot["sources"], dict)
+    assert "solar" in snapshot["sources"]
+    assert "wind" in snapshot["sources"]
+    assert snapshot["dataSource"] in ("real", "simulated")
+    assert isinstance(snapshot["rawWeather"], dict)
+    assert isinstance(snapshot["carbonIntensity"], (int, float))
     if grid["delta"] > app_main.IMBALANCE_THRESHOLD:
         assert "SURPLUS" in grid["alerts"]
     if grid["delta"] < -app_main.IMBALANCE_THRESHOLD:
@@ -79,6 +95,15 @@ def test_api_balance_grid_has_enriched_fields():
     assert "demand" in response
     assert "predicted" in response["demand"]
     assert "actual" in response["demand"]
+    assert "sources" in response
+    assert "total_supply" in response
+    assert "total_demand" in response
+    assert "battery_level" in response
+    assert "grid_status" in response
+    assert "houses" in response
+    assert "dataSource" in response
+    assert "rawWeather" in response
+    assert "carbonIntensity" in response
 
 
 def test_api_simulate_scenario_contract_and_calculations():
