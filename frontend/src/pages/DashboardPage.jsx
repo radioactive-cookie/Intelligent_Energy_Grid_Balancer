@@ -3,7 +3,6 @@ import { Zap, Moon, Sun, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getGridStatus } from '../services/api';
 import Dashboard from '../components/Dashboard';
-import AIBalancerModal from '../components/AIBalancerModal';
 
 function getGridStatusFromDelta(delta) {
   if (delta > 0) return 'SURPLUS';
@@ -26,14 +25,12 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [introPlaying, setIntroPlaying] = useState(true);
-  const [showAIModal, setShowAIModal] = useState(false);
   const [scenario, setScenario] = useState({
     demandMultiplier: 1,
     solarMultiplier: 1,
     windMultiplier: 1,
   });
   const alertIdCounterRef = useRef(0);
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
   useEffect(() => {
     if (!introPlaying) {
@@ -341,27 +338,9 @@ export default function DashboardPage() {
               gridData={gridData}
               alerts={alerts}
               onDismissAlert={dismissAlert}
-              onRunAIBalancer={() => setShowAIModal(true)}
             />
           )}
         </main>
-        {showAIModal && (
-          <AIBalancerModal
-            gridData={gridData}
-            onClose={() => setShowAIModal(false)}
-            onApply={(decision) => {
-              const supply = decision.grid_snapshot?.total_supply_kw ?? 0;
-              const demand = decision.grid_snapshot?.demand_kw ?? 0;
-              fetch(`${backendUrl}/api/balance-grid`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ supply, demand, hour: decision.grid_snapshot?.hour }),
-              }).catch((err) => {
-                console.error('Failed to apply AI recommendation', err);
-              });
-            }}
-          />
-        )}
         </div>
       </div>
     </div>
