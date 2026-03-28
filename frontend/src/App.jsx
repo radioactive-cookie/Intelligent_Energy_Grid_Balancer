@@ -12,8 +12,16 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [introPlaying, setIntroPlaying] = useState(true);
 
-  // Intro sequence timer
+  // Force scroll to top when intro finishes
   useEffect(() => {
+    if (!introPlaying) {
+      window.scrollTo(0, 0);
+    }
+  }, [introPlaying]);
+
+  // Force scroll to top on mount and start intro timer
+  useEffect(() => {
+    window.scrollTo(0, 0);
     const timer = setTimeout(() => {
       setIntroPlaying(false);
     }, 3500);
@@ -22,16 +30,18 @@ export default function App() {
 
   const { data: wsData, isConnected } = useWebSocket();
 
-  // Merge WebSocket data
+  // Merge WebSocket data - use directly as it's already mapped in the hook
   useEffect(() => {
     if (wsData) {
       setGridData(wsData);
       setIsLoading(false);
       setLastUpdated(new Date());
 
-      if (wsData.grid?.alerts?.length > 0) {
+      // Handle alerts if they exist in the raw message or mapped data
+      const alertsList = wsData.grid?.alerts || wsData.alerts;
+      if (alertsList?.length > 0) {
         setAlerts((prev) => {
-          const incoming = wsData.grid.alerts.map((a) => ({
+          const incoming = alertsList.map((a) => ({
             ...a,
             id: `${a.type}-${Date.now()}-${Math.random()}`,
           }));

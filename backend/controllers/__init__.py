@@ -43,8 +43,8 @@ class GridController:
                 imbalance=dashboard.get("imbalance", 0.0),
                 grid_stability_score=dashboard.get("grid_stability_score", 95.0),
                 is_stable=dashboard.get("status") == "stable",
-                solar_mw=dashboard.get("solar_mw", 0.0),
-                wind_mw=dashboard.get("wind_mw", 0.0)
+                solar_mw=dashboard.get("solar_generation", 0.0),
+                wind_mw=dashboard.get("wind_generation", 0.0)
             )
 
             data_storage_service.save_grid_state(grid_state)
@@ -400,8 +400,8 @@ class MetricsController:
             "frequency": round(dashboard.get("frequency", 50.0), 3),
             "stability_score": dashboard.get("grid_stability_score", 100),
             "total_gen": dashboard.get("total_generation", 0.0),
-            "solar_gen": dashboard.get("solar_mw", 0.0),
-            "wind_gen": dashboard.get("wind_mw", 0.0),
+            "solar_gen": dashboard.get("solar_generation", 0.0),
+            "wind_gen": dashboard.get("wind_generation", 0.0),
             "total_demand": dashboard.get("demand", 0.0),
             "battery_soc": round((config.battery_current / config.battery_capacity) * 100, 2),
             "battery_current": round(config.battery_current, 2),
