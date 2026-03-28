@@ -2,6 +2,11 @@
 
 A **production-ready** backend system for intelligent energy grid management, balancing, and optimization. Built with Python, FastAPI, and advanced decision-making algorithms.
 
+## 🌐 Hosted Links
+
+1. **Vercel (frontend host):** https://intelligent-energy-grid-balancer.vercel.app/
+2. **Render (backend host):** https://intelligent-energy-grid-balancer-fdxg.onrender.com
+
 ## 🎯 Overview
 
 The Intelligent Energy Grid Balancer is a sophisticated system designed to:
@@ -84,9 +89,9 @@ uvicorn main:app --reload
 ```
 
 ### Access API
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
-- **Home:** http://localhost:8000/
+- **Swagger UI:** https://intelligent-energy-grid-balancer-fdxg.onrender.com/docs
+- **ReDoc:** https://intelligent-energy-grid-balancer-fdxg.onrender.com/redoc
+- **Home:** https://intelligent-energy-grid-balancer-fdxg.onrender.com/
 
 ### Test System
 ```bash
@@ -307,7 +312,7 @@ Based on:
 
 **Single Scenario (MW-based):**
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario" \
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario" \
   -H "Content-Type: application/json" \
   -d '{
     "solar_mw": 150.0,
@@ -318,7 +323,7 @@ curl -X POST "http://localhost:8000/simulate/scenario" \
 
 **Multi-Step Time Series (1-10 steps):**
 ```bash
-curl -X POST "http://localhost:8000/simulate/multi-step" \
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/multi-step" \
   -H "Content-Type: application/json" \
   -d '{
     "steps": [
@@ -331,12 +336,12 @@ curl -X POST "http://localhost:8000/simulate/multi-step" \
 
 **Get Simulation History:**
 ```bash
-curl "http://localhost:8000/simulate/history?limit=50"
+curl "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/history?limit=50"
 ```
 
 **Reset Battery State:**
 ```bash
-curl -X POST "http://localhost:8000/simulate/reset-state?battery_current=250.0"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/reset-state?battery_current=250.0"
 ```
 
 ### Response Examples
@@ -522,7 +527,7 @@ ELSE:
 
 **Update inputs and get dashboard:**
 ```bash
-curl -X POST "http://localhost:8000/grid/update-inputs" \
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/grid/update-inputs" \
   -H "Content-Type: application/json" \
   -d '{
     "solar_mw": 150.0,
@@ -535,12 +540,12 @@ curl -X POST "http://localhost:8000/grid/update-inputs" \
 
 **Get current inputs:**
 ```bash
-curl "http://localhost:8000/grid/inputs"
+curl "https://intelligent-energy-grid-balancer-fdxg.onrender.com/grid/inputs"
 ```
 
 **Simulate one time step:**
 ```bash
-curl -X POST "http://localhost:8000/grid/simulate-step" \
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/grid/simulate-step" \
   -H "Content-Type: application/json" \
   -d '{
     "solar_mw": 160.0,
@@ -610,32 +615,32 @@ Where:
 
 ### Get Grid Status
 ```bash
-curl http://localhost:8000/grid/status
+curl https://intelligent-energy-grid-balancer-fdxg.onrender.com/grid/status
 ```
 
 ### Run Balancing Engine
 ```bash
-curl -X POST http://localhost:8000/balance/run
+curl -X POST https://intelligent-energy-grid-balancer-fdxg.onrender.com/balance/run
 ```
 
 ### Simulate Scenario (high solar, moderate wind, normal demand)
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario?sunlight_level=0.8&wind_speed=12&demand_spike=0"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario?sunlight_level=0.8&wind_speed=12&demand_spike=0"
 ```
 
 ### Get System Metrics
 ```bash
-curl http://localhost:8000/metrics
+curl https://intelligent-energy-grid-balancer-fdxg.onrender.com/metrics
 ```
 
 ### Predict Solar Generation (48 hours)
 ```bash
-curl -X POST "http://localhost:8000/predict/generation/solar?hours=48"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/predict/generation/solar?hours=48"
 ```
 
 ### WebSocket Connection (JavaScript)
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws');
+const ws = new WebSocket('wss://intelligent-energy-grid-balancer-fdxg.onrender.com/ws');
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     console.log('Grid Update:', data);
@@ -685,7 +690,7 @@ Conditions: Noon, strong sunlight (95%), strong wind (15 m/s), normal demand
 Expected Solar: 475 kW, Wind: 133 kW  
 **Test:**
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario?sunlight_level=0.95&wind_speed=15&demand_spike=0"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario?sunlight_level=0.95&wind_speed=15&demand_spike=0"
 ```
 
 ### Scenario 2: Excess Generation (Battery Storage)
@@ -693,7 +698,7 @@ Conditions: Afternoon, strong sunlight (90%), high wind (18 m/s), low demand
 Expected Action: **STORE** (charge battery with ~180 kW excess)  
 **Test:**
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario?sunlight_level=0.9&wind_speed=18&demand_spike=-0.2"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario?sunlight_level=0.9&wind_speed=18&demand_spike=-0.2"
 ```
 
 ### Scenario 3: High Demand with Low Generation
@@ -701,7 +706,7 @@ Conditions: Evening, low sunlight (20%), low wind (3 m/s), high demand
 Expected Action: **RELEASE** (discharge battery heavily)  
 **Test:**
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario?sunlight_level=0.2&wind_speed=3&demand_spike=0.4"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario?sunlight_level=0.2&wind_speed=3&demand_spike=0.4"
 ```
 
 ### Scenario 4: Critical Battery + High Demand
@@ -710,7 +715,7 @@ Expected Action: **DEMAND_RESPONSE** (critical)
 Alerts: battery_low, demand_spike  
 **Test:**
 ```bash
-curl -X POST "http://localhost:8000/simulate/scenario?sunlight_level=0&wind_speed=2&demand_spike=0.5"
+curl -X POST "https://intelligent-energy-grid-balancer-fdxg.onrender.com/simulate/scenario?sunlight_level=0&wind_speed=2&demand_spike=0.5"
 ```
 
 ## 📚 Project Statistics
