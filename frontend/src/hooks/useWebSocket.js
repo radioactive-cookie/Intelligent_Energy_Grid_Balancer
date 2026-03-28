@@ -1,7 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 function getWsUrl() {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
+  if (configuredWsUrl) {
+    if (
+      configuredWsUrl.startsWith('ws://') ||
+      configuredWsUrl.startsWith('wss://')
+    ) {
+      return configuredWsUrl;
+    }
+    if (configuredWsUrl.startsWith('http://')) {
+      return configuredWsUrl.replace('http://', 'ws://');
+    }
+    if (configuredWsUrl.startsWith('https://')) {
+      return configuredWsUrl.replace('https://', 'wss://');
+    }
+    return configuredWsUrl;
+  }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}/ws`;
 }
