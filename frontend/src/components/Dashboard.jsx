@@ -29,7 +29,7 @@ function StatCard({ icon: Icon, label, value, unit, color, sublabel }) {
   );
 }
 
-export default function Dashboard({ gridData, alerts, onDismissAlert, onRunAIBalancer }) {
+export default function Dashboard({ gridData, alerts, onDismissAlert }) {
   const energy = gridData?.energy || {};
   const demand = gridData?.demand || {};
   const battery = gridData?.battery || {};
@@ -160,7 +160,7 @@ export default function Dashboard({ gridData, alerts, onDismissAlert, onRunAIBal
         <EnergyGenerationPanel energy={energy} />
         <EnergyConsumptionPanel demand={demand} />
         <BatteryStorage battery={battery} />
-        <GridStatusIndicator grid={grid} onRunAIBalancer={onRunAIBalancer} />
+        <GridStatusIndicator grid={grid} />
       </div>
 
       {/* Alerts */}
