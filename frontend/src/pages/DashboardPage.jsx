@@ -42,6 +42,8 @@ export default function DashboardPage() {
 
   const applyScenario = useCallback((base) => {
     if (!base) return base;
+    
+    // Core multipliers
     const demandActual = (base.demand?.actual ?? 0) * scenario.demandMultiplier;
     const solar = (base.energy?.solar ?? 0) * scenario.solarMultiplier;
     const wind = (base.energy?.wind ?? 0) * scenario.windMultiplier;
@@ -49,6 +51,23 @@ export default function DashboardPage() {
     const delta = total - demandActual;
     const battery = base.battery || {};
     const nextStatus = getGridStatusFromDelta(delta);
+
+    // Calculate dynamic carbon intensity based on the shifted energy mix
+    const I_SOLAR = 12.0;
+    const I_WIND = 11.0;
+    const I_GRID = base.grid?.carbonIntensity || 450.0;
+    
+    let carbonIntensity = I_GRID;
+    if (total > 0 || demandActual > 0) {
+      if (total >= demandActual) {
+        // Fully renewable (excess goes to battery)
+        carbonIntensity = (solar * I_SOLAR + wind * I_WIND) / (total || 1);
+      } else {
+        // Renewable + Grid Deficit (Thermal)
+        const gridDeficit = demandActual - total;
+        carbonIntensity = (solar * I_SOLAR + wind * I_WIND + gridDeficit * I_GRID) / (demandActual || 1);
+      }
+    }
 
     return {
       ...base,
@@ -73,9 +92,10 @@ export default function DashboardPage() {
         ...(base.grid || {}),
         delta,
         gridStatus: nextStatus,
+        carbonIntensity: Math.round(carbonIntensity),
       },
     };
-  }, [scenario.demandMultiplier, scenario.solarMultiplier, scenario.windMultiplier]);
+  }, [scenario]);
 
   useEffect(() => {
     if (wsData) {
@@ -139,7 +159,7 @@ export default function DashboardPage() {
           action: 'balanced',
           delta,
           alerts: [],
-          carbonIntensity: data.carbonIntensity ?? null,
+          carbonIntensity: data.carbonIntensity ?? 450,
         },
         timestamp: data.timestamp ?? new Date().toISOString(),
       };
