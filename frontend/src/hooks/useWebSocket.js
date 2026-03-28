@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 function getWsUrl() {
-<<<<<<< HEAD
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
-  // If running on localhost:5173 (Vite), point to the default backend port 8000
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return `ws://localhost:8000/ws`;
-  }
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws`;
-=======
   const isSecurePage = window.location.protocol === 'https:';
   const wsScheme = isSecurePage ? 'wss' : 'ws';
   const wsProtocol = `${wsScheme}://`;
@@ -31,8 +22,10 @@ function getWsUrl() {
     }
     return `${wsProtocol}${window.location.host}${ensureLeadingSlash(configuredWsUrl)}`;
   }
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'ws://localhost:8000/ws';
+  }
   return `${wsProtocol}${window.location.host}/ws`;
->>>>>>> 1f2a52ecf0159046cd2db518ab0f121bea39cd72
 }
 
 const WS_URL = getWsUrl();

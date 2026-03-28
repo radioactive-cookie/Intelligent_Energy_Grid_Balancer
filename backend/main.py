@@ -15,14 +15,9 @@ from contextlib import asynccontextmanager
 from config import get_settings
 from routes import router
 from utils import setup_logging, get_logger
-<<<<<<< HEAD
-from controllers import GridController, MetricsController, AlertController
-from services.weather_service import weather_service
-from services import simulation_state
-=======
 from controllers import GridController, AlertController
+from services.weather_service import weather_service
 from services import simulation_state, simulation_engine, real_data_fetcher, carbon_service
->>>>>>> 1f2a52ecf0159046cd2db518ab0f121bea39cd72
 
 logger = None
 settings = None
@@ -239,7 +234,6 @@ async def monitor_and_broadcast():
 
             if manager.active_connections:
                 try:
-<<<<<<< HEAD
                     # Sync with real-world weather data for Bhubaneswar every ~5 mins (approx 60 cycles)
                     if not hasattr(monitor_and_broadcast, "weather_counter"):
                         monitor_and_broadcast.weather_counter = 0
@@ -249,10 +243,6 @@ async def monitor_and_broadcast():
                         simulation_state.update_from_weather(weather_data)
                     
                     monitor_and_broadcast.weather_counter += 1
-
-                    metrics = MetricsController.get_system_metrics()
-=======
->>>>>>> 1f2a52ecf0159046cd2db518ab0f121bea39cd72
                     await manager.broadcast({
                         "type": "GRID_UPDATE",
                         "data": snapshot
