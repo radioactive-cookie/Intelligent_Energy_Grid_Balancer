@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+backend/.env
 frontend/.env.local
 logs/
 *.log

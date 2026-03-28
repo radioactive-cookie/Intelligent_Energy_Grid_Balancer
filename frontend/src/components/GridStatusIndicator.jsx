@@ -36,7 +36,7 @@ const STATUS_CONFIG = {
   },
 };
 
-export default function GridStatusIndicator({ grid = {} }) {
+export default function GridStatusIndicator({ grid = {}, onRunAIBalancer }) {
   const status = grid.gridStatus ?? 'BALANCED';
   const efficiency = grid.efficiency ?? 0;
   const action = grid.action ?? 'balanced';
@@ -108,12 +108,10 @@ export default function GridStatusIndicator({ grid = {} }) {
         </div>
       </div>
 
-      <button 
-        onClick={async () => {
-          try {
-            await (await import('../services/api')).balanceGrid();
-          } catch (err) {
-            console.error('Balance failed', err);
+      <button
+        onClick={() => {
+          if (onRunAIBalancer) {
+            onRunAIBalancer();
           }
         }}
         className="w-full py-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold uppercase tracking-widest hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all flex items-center justify-center gap-2 group"

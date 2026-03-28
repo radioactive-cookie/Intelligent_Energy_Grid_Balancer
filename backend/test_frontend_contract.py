@@ -1,5 +1,6 @@
 """Focused contract tests for frontend-compatible API payloads."""
 import asyncio
+import json
 
 import main as app_main
 
@@ -104,6 +105,68 @@ def test_api_balance_grid_has_enriched_fields():
     assert "dataSource" in response
     assert "rawWeather" in response
     assert "carbonIntensity" in response
+
+
+class _FakeRequest:
+    def __init__(self, payload: dict):
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
+
+
+def test_api_ai_balance_success_with_stubbed_service(monkeypatch):
+    stub_decision = {
+        "action": "BALANCED",
+        "confidence": 0.92,
+        "battery_instruction": {"operation": "hold", "target_percentage": 60, "rate_kw": 0},
+        "demand_response": {
+            "active": False,
+            "zones_affected": [],
+            "reduction_percentage": 0,
+            "message_to_households": "No action required.",
+        },
+        "grid_stability_score": 0.95,
+        "reasoning": "Supply and demand are aligned. Battery remains stable.",
+        "forecast_30min": "Grid remains balanced.",
+        "grid_snapshot": {"total_supply_kw": 300, "demand_kw": 300, "hour": 12},
+    }
+    monkeypatch.setattr(app_main, "run_ai_balancer", lambda _: stub_decision)
+
+    response = asyncio.run(app_main.ai_balance_grid(_FakeRequest({"hour": 12})))
+    payload = json.loads(response.body.decode("utf-8"))
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["decision"]["action"] == "BALANCED"
+
+
+def test_api_ai_balance_returns_503_for_missing_token(monkeypatch):
+    def _raise_missing_token(_):
+        raise ValueError("GITHUB_TOKEN environment variable is not set.")
+
+    monkeypatch.setattr(app_main, "run_ai_balancer", _raise_missing_token)
+
+    response = asyncio.run(app_main.ai_balance_grid(_FakeRequest({"hour": 12})))
+    payload = json.loads(response.body.decode("utf-8"))
+
+    assert response.status_code == 503
+    assert payload["success"] is False
+    assert "GitHub Models API not configured" in payload["error"]
+
+
+def test_api_ai_balance_returns_500_for_unexpected_errors(monkeypatch):
+    def _raise_runtime_error(_):
+        raise RuntimeError("upstream timeout")
+
+    monkeypatch.setattr(app_main, "run_ai_balancer", _raise_runtime_error)
+
+    response = asyncio.run(app_main.ai_balance_grid(_FakeRequest({"hour": 12})))
+    payload = json.loads(response.body.decode("utf-8"))
+
+    assert response.status_code == 500
+    assert payload["success"] is False
+    assert payload["error"] == "AI balancer failed"
 
 
 def test_api_simulate_scenario_contract_and_calculations():
