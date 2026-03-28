@@ -52,6 +52,7 @@ export default function EnergySourcesChart({ energy = {}, battery = {} }) {
               tick={{ fill: '#64748b', fontSize: 10 }}
               axisLine={{ stroke: '#334155' }}
               tickLine={false}
+              domain={[0, (dataMax) => Math.max(Math.ceil(dataMax / 500) * 500, 2000)]}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
             <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>

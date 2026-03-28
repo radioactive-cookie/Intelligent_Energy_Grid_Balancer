@@ -6,10 +6,10 @@ from typing import List, Dict
 class DemandProfile(BaseModel):
     """Model for demand profile"""
     profile_id: str = Field(..., description="Unique identifier for demand profile")
-    current_demand: float = Field(default=0, ge=0, description="Current demand in kW")
-    peak_demand: float = Field(default=0, ge=0, description="Peak demand in kW")
-    minimum_demand: float = Field(default=0, ge=0, description="Minimum demand in kW")
-    average_demand: float = Field(default=0, ge=0, description="Average demand in kW")
+    current_demand: float = Field(default=0, ge=0, description="Current demand in MW")
+    peak_demand: float = Field(default=0, ge=0, description="Peak demand in MW")
+    minimum_demand: float = Field(default=0, ge=0, description="Minimum demand in MW")
+    average_demand: float = Field(default=0, ge=0, description="Average demand in MW")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     hourly_distribution: Dict[int, float] = Field(default_factory=dict, description="Hourly demand distribution")
     sector_breakdown: Dict[str, float] = Field(default_factory=dict, description="Demand by sector")

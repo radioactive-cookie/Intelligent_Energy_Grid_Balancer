@@ -6,10 +6,10 @@ from typing import Optional
 class BatteryStorage(BaseModel):
     """Model for battery storage system"""
     battery_id: str = Field(..., description="Unique identifier for battery")
-    capacity: float = Field(..., ge=0, description="Total capacity in kWh")
-    current_level: float = Field(..., ge=0, description="Current charge level in kWh")
-    charge_rate: float = Field(..., ge=0, description="Charging rate in kW")
-    discharge_rate: float = Field(..., ge=0, description="Discharging rate in kW")
+    capacity: float = Field(..., ge=0, description="Total capacity in MWh")
+    current_level: float = Field(..., ge=0, description="Current charge level in MWh")
+    charge_rate: float = Field(..., ge=0, description="Charging rate in MW")
+    discharge_rate: float = Field(..., ge=0, description="Discharging rate in MW")
     state_of_charge: float = Field(default=0, ge=0, le=100, description="State of charge percentage")
     status: str = Field(default="idle", description="idle, charging, discharging")
     health: float = Field(default=100, ge=0, le=100, description="Battery health percentage")

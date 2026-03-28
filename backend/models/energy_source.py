@@ -7,8 +7,8 @@ class EnergySource(BaseModel):
     """Model for energy generation sources"""
     source_id: str = Field(..., description="Unique identifier for energy source")
     type: Literal["solar", "wind"] = Field(..., description="Type of energy source")
-    generation_value: float = Field(..., ge=0, description="Current generation in kW")
-    capacity: float = Field(..., ge=0, description="Maximum capacity in kW")
+    generation_value: float = Field(..., ge=0, description="Current generation in MW")
+    capacity: float = Field(..., ge=0, description="Maximum capacity in MW")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     location: str = Field(..., description="Location of energy source")
     efficiency: float = Field(default=0.95, ge=0, le=1, description="Efficiency percentage")

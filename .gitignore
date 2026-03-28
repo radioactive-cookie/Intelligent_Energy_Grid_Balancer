@@ -1,6 +1,26 @@
 node_modules/
 dist/
 .env
+.env.local
 logs/
 *.log
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+venv2/
+v/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Backend specific
+backend/data/*.json
+!backend/data/seed.json

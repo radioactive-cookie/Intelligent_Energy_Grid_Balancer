@@ -142,6 +142,7 @@ class SimulationEngine:
                 # Balanced
                 surplus = 0.0
                 deficit = 0.0
+                battery_action = "idle"
                 load_shedding = 0.0
                 logger.debug("Grid balanced - no battery action needed")
             

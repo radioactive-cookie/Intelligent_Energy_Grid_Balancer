@@ -6,6 +6,7 @@ import BatteryStorage from './BatteryStorage';
 import DemandSupplyChart from './DemandSupplyChart';
 import EnergySourcesChart from './EnergySourcesChart';
 import AlertsPanel from './AlertsPanel';
+import EnergyPath from './EnergyPath';
 
 function StatCard({ icon: Icon, label, value, unit, color, sublabel }) {
   return (
@@ -53,15 +54,15 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
           icon={Zap}
           label="Total Generation"
           value={totalGeneration.toFixed(1)}
-          unit="kW"
+          unit="MW"
           color="bg-emerald-500/20 text-emerald-400"
-          sublabel={`☀ ${(energy.solar ?? 0).toFixed(1)} kW · 💨 ${(energy.wind ?? 0).toFixed(1)} kW`}
+          sublabel={`☀ ${(energy.solar ?? 0).toFixed(1)} MW · 💨 ${(energy.wind ?? 0).toFixed(1)} MW`}
         />
         <StatCard
           icon={TrendingUp}
           label="Total Demand"
           value={totalDemand.toFixed(1)}
-          unit="kW"
+          unit="MW"
           color="bg-orange-500/20 text-orange-400"
           sublabel={`Pattern: ${typeof demand === 'object' ? (demand.pattern ?? '—') : '—'}`}
         />
@@ -77,7 +78,7 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
               ? 'bg-yellow-500/20 text-yellow-400'
               : 'bg-red-500/20 text-red-400'
           }
-          sublabel={`${(battery.level ?? 0).toFixed(0)} / ${battery.capacity ?? 1000} kWh`}
+          sublabel={`${(battery.level ?? 0).toFixed(0)} / ${battery.capacity ?? 1000} MWh`}
         />
         <StatCard
           icon={Activity}
@@ -97,6 +98,11 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
         <div>
           <EnergySourcesChart energy={energy} battery={battery} />
         </div>
+      </div>
+
+      {/* Energy Flow Animation */}
+      <div className="glass-card hidden xl:block">
+        <EnergyPath generation={totalGeneration} demand={totalDemand} />
       </div>
 
       {/* Panels row */}

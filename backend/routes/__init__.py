@@ -44,7 +44,7 @@ class SimulationStep(BaseModel):
 
 class MultiStepSimulation(BaseModel):
     """Multi-step simulation run"""
-    steps: List[SimulationStep] = Field(..., min_items=1, max_items=10, description="1-10 simulation steps")
+    steps: List[SimulationStep] = Field(..., min_length=1, max_length=10, description="1-10 simulation steps")
 
 # Create routers
 router = APIRouter()

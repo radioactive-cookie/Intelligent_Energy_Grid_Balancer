@@ -88,7 +88,7 @@ export default function DemandSupplyChart({ gridData }) {
               tick={{ fill: '#64748b', fontSize: 10 }}
               axisLine={{ stroke: '#334155' }}
               tickLine={false}
-              domain={['auto', 'auto']}
+              domain={[0, (dataMax) => Math.max(Math.ceil(dataMax / 500) * 500, 2000)]}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend

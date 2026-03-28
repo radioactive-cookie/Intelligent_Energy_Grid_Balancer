@@ -42,12 +42,15 @@ export function useWebSocket() {
             setData(parsed.data);
           } else if (parsed.type === 'metrics_update' && parsed.data) {
             const m = parsed.data;
-            const battSoc = m.battery_soc ?? 0;
+            const battUnits = m.battery_current ?? 0;
+            const battCap = m.battery_capacity ?? 1000;
+            const battSoc = m.battery_soc ?? ((battUnits / (battCap || 1)) * 100);
+            
             setData({
               energy: {
-                total: m.total_generation ?? 0,
-                solar: 0,
-                wind: 0,
+                total: m.total_gen ?? 0,
+                solar: m.solar_gen ?? 0,
+                wind: m.wind_gen ?? 0,
               },
               demand: {
                 actual: m.total_demand ?? 0,
@@ -57,23 +60,24 @@ export function useWebSocket() {
               },
               battery: {
                 percentage: battSoc,
-                level: battSoc * 5,
-                capacity: 500,
-                isCharging: (m.total_generation ?? 0) > (m.total_demand ?? 0),
-                isDraining: (m.total_generation ?? 0) < (m.total_demand ?? 0),
-                chargingRate: Math.abs((m.total_generation ?? 0) - (m.total_demand ?? 0)),
+                level: battUnits,
+                capacity: battCap,
+                isCharging: (m.total_gen ?? 0) > (m.total_demand ?? 0),
+                isDraining: (m.total_gen ?? 0) < (m.total_demand ?? 0),
+                chargingRate: Math.abs((m.total_gen ?? 0) - (m.total_demand ?? 0)),
               },
               grid: {
+                frequency: m.frequency ?? 50.0,
                 gridStatus:
-                  m.grid_stability_score >= 80
+                  m.stability_score >= 80
                     ? 'BALANCED'
-                    : m.grid_stability_score >= 50
+                    : m.stability_score >= 50
                     ? 'DEFICIT'
                     : 'CRITICAL',
-                efficiency: m.grid_stability_score ?? 0,
+                efficiency: m.stability_score ?? 0,
                 action: 'balanced',
-                delta: (m.total_generation ?? 0) - (m.total_demand ?? 0),
-                alerts: [],
+                delta: (m.total_gen ?? 0) - (m.total_demand ?? 0),
+                alerts: m.alerts?.active || [],
               },
               timestamp: m.timestamp,
             });

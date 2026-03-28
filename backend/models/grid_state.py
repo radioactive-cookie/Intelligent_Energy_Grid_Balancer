@@ -14,7 +14,9 @@ class GridState(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     grid_stability_score: float = Field(default=100, ge=0, le=100, description="Grid stability score 0-100")
     is_stable: bool = Field(default=True, description="Whether grid is stable")
-    imbalance: float = Field(default=0, description="Generation - Demand imbalance in kW")
+    imbalance: float = Field(default=0, description="Generation - Demand imbalance in MW")
+    solar_mw: float = Field(default=0, description="Solar generation in MW")
+    wind_mw: float = Field(default=0, description="Wind generation in MW")
     
     class Config:
         json_schema_extra = {

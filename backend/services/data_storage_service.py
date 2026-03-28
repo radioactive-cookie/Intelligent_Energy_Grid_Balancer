@@ -135,6 +135,28 @@ class DataStorageService:
         except Exception as e:
             logger.error(f"Error saving metrics: {e}")
     
+    def save_simulation_run(self, result: Dict):
+        """Save a simulation run result"""
+        try:
+            sims = []
+            sim_file = os.path.join(self.data_dir, "simulations.json")
+            if os.path.exists(sim_file):
+                with open(sim_file, 'r') as f:
+                    sims = json.load(f)
+
+            sims.append(result)
+
+            # Keep only last 500 simulation results
+            if len(sims) > 500:
+                sims = sims[-500:]
+
+            with open(sim_file, 'w') as f:
+                json.dump(sims, f, indent=2, default=str)
+
+            logger.debug("Saved simulation run")
+        except Exception as e:
+            logger.error(f"Error saving simulation run: {e}")
+
     def clear_old_data(self, days: int = 7):
         """Clear data older than N days"""
         cutoff_time = datetime.utcnow().timestamp() - (days * 86400)

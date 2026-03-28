@@ -1,4 +1,4 @@
-import { Sun, Wind, Zap } from 'lucide-react';
+import { Sun, Moon, Wind, Zap } from 'lucide-react';
 
 export default function EnergyGenerationPanel({ energy = {} }) {
   const solar = energy.solar ?? 0;
@@ -24,16 +24,20 @@ export default function EnergyGenerationPanel({ energy = {} }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sun className="w-5 h-5 text-yellow-400 animate-pulse-slow" />
+            {solar > 0 ? (
+              <Sun className="w-5 h-5 text-yellow-400 animate-pulse-slow" />
+            ) : (
+              <Moon className="w-5 h-5 text-slate-500" />
+            )}
             <span className="text-sm text-slate-300">Solar</span>
           </div>
-          <span className="text-sm font-bold gradient-text-solar tabular-nums">
+          <span className={`text-sm font-bold tabular-nums ${solar > 0 ? 'gradient-text-solar' : 'text-slate-500'}`}>
             {solar.toFixed(1)} kW
           </span>
         </div>
-        <div className="progress-track">
+        <div className={`progress-track ${solar === 0 ? 'bg-slate-800/50' : ''}`}>
           <div
-            className="progress-fill bg-gradient-to-r from-yellow-500 to-orange-500"
+            className={`progress-fill ${solar > 0 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 'bg-slate-700'}`}
             style={{ width: `${solarPct}%` }}
           />
         </div>

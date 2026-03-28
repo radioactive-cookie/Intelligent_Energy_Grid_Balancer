@@ -57,8 +57,8 @@ export default function App() {
       setGridData({
         energy: {
           total: data.total_generation ?? 0,
-          solar: data.solar_generation ?? 0,
-          wind: data.wind_generation ?? 0,
+          solar: data.solar_mw ?? 0,
+          wind: data.wind_mw ?? 0,
         },
         demand: {
           actual: data.demand ?? 0,
@@ -75,6 +75,7 @@ export default function App() {
           chargingRate: Math.abs(data.imbalance ?? 0),
         },
         grid: {
+          frequency: data.frequency ?? 50.0,
           gridStatus: gridStatusMap[data.status] ?? 'BALANCED',
           efficiency: data.efficiency ?? 0,
           action: 'balanced',
@@ -188,7 +189,7 @@ export default function App() {
         </header>
 
         {/* Main content */}
-        <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+        <main className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-6 transition-all duration-1000 ${!isConnected && !isLoading ? 'grayscale opacity-75' : ''}`}>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
               <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />

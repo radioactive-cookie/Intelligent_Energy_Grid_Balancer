@@ -1,4 +1,5 @@
-import { Activity, CheckCircle, AlertTriangle, XCircle, ArrowUpDown } from 'lucide-react';
+import { Activity, CheckCircle, AlertTriangle, XCircle, ArrowUpDown, Zap } from 'lucide-react';
+import FrequencyGauge from './FrequencyGauge';
 
 const STATUS_CONFIG = {
   BALANCED: {
@@ -40,6 +41,7 @@ export default function GridStatusIndicator({ grid = {} }) {
   const efficiency = grid.efficiency ?? 0;
   const action = grid.action ?? 'balanced';
   const delta = grid.delta ?? 0;
+  const frequency = grid.frequency ?? 50.0;
 
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.BALANCED;
   const Icon = cfg.icon;
@@ -101,9 +103,28 @@ export default function GridStatusIndicator({ grid = {} }) {
             }`}
           >
             {delta >= 0 ? '+' : ''}
-            {delta.toFixed(1)} kW
+            {delta.toFixed(1)} MW
           </p>
         </div>
+      </div>
+
+      <button 
+        onClick={async () => {
+          try {
+            await (await import('../services/api')).balanceGrid();
+          } catch (err) {
+            console.error('Balance failed', err);
+          }
+        }}
+        className="w-full py-2.5 rounded-xl bg-cyan-600/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold uppercase tracking-widest hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all flex items-center justify-center gap-2 group"
+      >
+        <Zap className="w-4 h-4 group-hover:animate-bounce" />
+        Run AI Balancer
+      </button>
+
+      {/* Frequency Gauge */}
+      <div>
+        <FrequencyGauge frequency={frequency} />
       </div>
     </div>
   );
