@@ -48,29 +48,37 @@ class CarbonService:
         value = payload.get("carbonIntensity")
         return float(value) if value is not None else None
 
-    def get_carbon_intensity(self) -> float:
-        if self._cache_valid():
-            return float(self._cached_value)
-
-        fallback_value = float(self.settings.carbon_intensity_fallback)
+    def get_carbon_intensity(self, solar_mw: float = 150, wind_mw: float = 200, demand_mw: float = 350) -> float:
+        """
+        Calculate dynamic carbon intensity based on the current energy mix.
+        If generation exceeds demand, intensity is purely from renewables (~12g).
+        If demand exceeds generation, the deficit is assumed to be met by the thermal grid (~450g).
+        """
         try:
-            fetched = self._fetch_from_electricity_maps()
-            value = fallback_value if fetched is None else fetched
-            self._cached_value = value
-            self._cached_at = datetime.now(timezone.utc)
-            return float(value)
-        except HTTPError as exc:
-            if exc.code in (401, 403):
-                logger.warning("Electricity Maps authentication failed; using fallback carbon intensity")
+            total_gen = solar_mw + wind_mw
+            
+            # Emission factors (approximate gCO2/kWh)
+            I_SOLAR = 12.0
+            I_WIND = 11.0
+            I_GRID = float(self.settings.carbon_intensity_fallback) # Default 450.0 (Thermal/Mixed)
+            
+            if total_gen >= demand_mw:
+                # Fully renewable (excess goes to battery)
+                weighted_sum = (solar_mw * I_SOLAR) + (wind_mw * I_WIND)
+                intensity = weighted_sum / total_gen if total_gen > 0 else I_GRID
             else:
-                logger.warning(f"Electricity Maps HTTP error {exc.code}; using fallback carbon intensity")
-            return fallback_value
-        except URLError as exc:
-            logger.warning(f"Electricity Maps network error; using fallback carbon intensity: {exc.reason}")
-            return fallback_value
-        except Exception as exc:
-            logger.warning(f"Carbon intensity fetch failed; using fallback: {exc}")
-            return fallback_value
+                # Renewable + Grid Deficit
+                renewable_gen = total_gen
+                grid_deficit = demand_mw - renewable_gen
+                
+                weighted_sum = (solar_mw * I_SOLAR) + (wind_mw * I_WIND) + (grid_deficit * I_GRID)
+                intensity = weighted_sum / demand_mw if demand_mw > 0 else I_GRID
+            
+            return round(float(intensity), 1)
+            
+        except Exception as e:
+            logger.warning(f"Dynamic carbon intensity calculation failed: {e}")
+            return float(self.settings.carbon_intensity_fallback)
 
 
 carbon_service = CarbonService()

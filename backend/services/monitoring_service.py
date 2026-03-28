@@ -76,17 +76,18 @@ class GridMonitoringService:
                 "GenerationMonitor"
             ))
         
-        # Check imbalance
-        imbalance_percentage = abs(grid_state.imbalance) / max(1, grid_state.total_demand) * 100
-        if imbalance_percentage > 15:
-            severity = "high" if imbalance_percentage < 25 else "critical"
-            new_alerts.append(self._create_alert(
-                "imbalance",
-                f"Supply-demand imbalance: {grid_state.imbalance:.1f} kW ({imbalance_percentage:.1f}%)",
-                severity,
-                "BalancingEngine"
-            ))
+        # Check for Household Demand Response (Peak Time or Critical Deficit)
+        current_hour = datetime.now().hour
+        is_peak_time = 18 <= current_hour <= 22 # 6PM - 10PM is typical peak in IN
         
+        if (is_peak_time and demand > 400.0) or (grid_state.imbalance < -50.0):
+            new_alerts.append(self._create_alert(
+                "household_response",
+                "⚠️ PEAK DEMAND: Notifying households to reduce non-essential power usage (AC/Heavy appliances) to stabilize grid.",
+                "high" if is_peak_time else "critical",
+                "DemandResponseEngine"
+            ))
+
         # Add to alert list and log
         for alert in new_alerts:
             self.alerts.append(alert)

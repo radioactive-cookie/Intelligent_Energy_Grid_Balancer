@@ -64,7 +64,7 @@ class DashboardCalculator:
                 logger.debug(f"Battery discharging to cover deficit: -{deficit} MWh")
             
             # Clamp battery between 0 and capacity
-            battery_current = max(0, min(battery_current, inputs.battery_capacity))
+            battery_current = max(0.0, min(float(battery_current), float(inputs.battery_capacity)))
             logger.debug(f"Battery after update: {battery_current} MWh / {inputs.battery_capacity} MWh")
             
             # 4. BATTERY PERCENT
@@ -93,19 +93,19 @@ class DashboardCalculator:
             
             # 8. API RESPONSE
             return {
-                "total_generation": round(total_generation, 2),
-                "demand": round(inputs.demand_mw, 2),
-                "frequency": round(frequency, 4),
-                "efficiency": round(efficiency, 2),
-                "battery_percent": round(battery_percent, 2),
-                "battery_current": round(battery_current, 2),
-                "battery_capacity": round(inputs.battery_capacity, 2),
+                "total_generation": float(round(total_generation, 2)),
+                "demand": float(round(inputs.demand_mw, 2)),
+                "frequency": float(round(frequency, 4)),
+                "efficiency": float(round(efficiency, 2)),
+                "battery_percent": float(round(battery_percent, 2)),
+                "battery_current": float(round(battery_current, 2)),
+                "battery_capacity": float(round(inputs.battery_capacity, 2)),
                 "status": status,
-                "surplus": round(surplus, 2),
-                "deficit": round(deficit, 2),
-                "imbalance": round(total_generation - inputs.demand_mw, 2),
-                "solar_generation": round(inputs.solar_mw, 2),
-                "wind_generation": round(inputs.wind_mw, 2),
+                "surplus": float(round(surplus, 2)),
+                "deficit": float(round(deficit, 2)),
+                "imbalance": float(round(total_generation - inputs.demand_mw, 2)),
+                "solar_generation": float(round(inputs.solar_mw, 2)),
+                "wind_generation": float(round(inputs.wind_mw, 2)),
                 "weather": inputs.weather_data or {"location": "Bhubaneswar, IN", "solar_radiation": 0, "wind_speed": 0}
             }
             
@@ -158,15 +158,15 @@ class SimulationState:
         Only provided parameters are updated.
         """
         if solar_mw is not None:
-            self.inputs.solar_mw = max(0, solar_mw)
+            self.inputs.solar_mw = max(0.0, float(solar_mw))
         if wind_mw is not None:
-            self.inputs.wind_mw = max(0, wind_mw)
+            self.inputs.wind_mw = max(0.0, float(wind_mw))
         if demand_mw is not None:
-            self.inputs.demand_mw = max(0, demand_mw)
+            self.inputs.demand_mw = max(0.0, float(demand_mw))
         if battery_current is not None:
-            self.inputs.battery_current = max(0, battery_current)
+            self.inputs.battery_current = max(0.0, float(battery_current))
         if battery_capacity is not None:
-            self.inputs.battery_capacity = max(0.1, battery_capacity)  # Prevent division by zero
+            self.inputs.battery_capacity = max(0.1, float(battery_capacity))  # Prevent division by zero
         
         self._update_dashboard()
         logger.info(f"Simulation inputs updated: Solar={self.inputs.solar_mw}, Wind={self.inputs.wind_mw}, "
@@ -174,8 +174,11 @@ class SimulationState:
         return self.last_dashboard
     
     def _update_dashboard(self):
-        """Calculate dashboard values for current inputs"""
+        """Calculate dashboard values for current inputs and persist state changes"""
         self.last_dashboard = DashboardCalculator.calculate_dashboard(self.inputs)
+        # Persist the calculated battery level back into our state for the next cycle
+        if "battery_current" in self.last_dashboard:
+            self.inputs.battery_current = self.last_dashboard["battery_current"]
     
     def get_dashboard(self) -> Dict:
         """Get current dashboard values"""

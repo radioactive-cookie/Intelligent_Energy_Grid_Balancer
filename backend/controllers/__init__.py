@@ -47,7 +47,12 @@ class GridController:
                 grid_stability_score=dashboard.get("grid_stability_score", 95.0),
                 is_stable=dashboard.get("status") == "stable",
                 solar_mw=dashboard.get("solar_generation", 0.0),
-                wind_mw=dashboard.get("wind_generation", 0.0)
+                wind_mw=dashboard.get("wind_generation", 0.0),
+                carbon_intensity=carbon_service.get_carbon_intensity(
+                    solar_mw=dashboard.get("solar_generation", 0.0),
+                    wind_mw=dashboard.get("wind_generation", 0.0),
+                    demand_mw=dashboard.get("demand", 0.0)
+                )
             )
 
             data_storage_service.save_grid_state(grid_state)
@@ -394,67 +399,45 @@ class MetricsController:
     """Unified Metrics for the Frontend Dashboard"""
 
     @staticmethod
-    def _build_enhanced_metrics() -> Dict:
-        current_inputs = simulation_state.get_inputs()
-        weather_generation = real_data_fetcher.get_generation(current_inputs)
-        # Demand intentionally comes from operator-configured simulation inputs while
-        # generation can switch between real-weather and simulated sources.
-        enhanced_inputs = DashboardInputs(
-            solar_mw=weather_generation["solar_mw"],
-            wind_mw=weather_generation["wind_mw"],
-            demand_mw=current_inputs.get("demand_mw", 0.0),
-            battery_current=current_inputs.get("battery_current", 0.0),
-            battery_capacity=current_inputs.get("battery_capacity", simulation_engine.config.battery_capacity),
-        )
-        # Calculate derived metrics from the selected data source without mutating shared simulation state.
-        enhanced = DashboardCalculator.calculate_dashboard(enhanced_inputs)
-        config = simulation_engine.config
+    def get_system_metrics() -> Dict:
+        dashboard = simulation_state.get_dashboard()
         alerts = monitoring_service.get_alert_stats()
-        carbon_intensity = carbon_service.get_carbon_intensity()
+        carbon_intensity = carbon_service.get_carbon_intensity(
+            solar_mw=dashboard.get("solar_generation", 0.0),
+            wind_mw=dashboard.get("wind_generation", 0.0),
+            demand_mw=dashboard.get("demand", 0.0)
+        )
+        weather = simulation_state.inputs.weather_data or {
+            "location": "Bhubaneswar, IN",
+            "solar_radiation": 0,
+            "wind_speed": 0,
+            "cloud_cover": 0,
+            "temperature": 0
+        }
 
-        total_supply = enhanced.get("total_generation", 0.0)
-        total_demand = enhanced.get("demand", 0.0)
-        battery_percent = enhanced.get("battery_percent", 0.0)
-        battery_current = enhanced.get("battery_current", 0.0)
-
+        # Map dashboard results to the response expected by the frontend
         return {
-            "total_supply": total_supply,
-            "total_demand": total_demand,
-            "battery_level": battery_percent,
-            "grid_status": enhanced.get("status", "stable"),
+            "total_supply": dashboard.get("total_generation", 0.0),
+            "total_demand": dashboard.get("demand", 0.0),
+            "battery_level": dashboard.get("battery_percent", 0.0),
+            "grid_status": dashboard.get("status", "stable"),
             "houses": 0,
             "alerts": alerts,
-            "sources": {
-                "solar": enhanced.get("solar_generation", 0.0),
-                "wind": enhanced.get("wind_generation", 0.0),
-            },
-            "dataSource": weather_generation.get("dataSource", "simulated"),
-            "rawWeather": weather_generation.get("rawWeather", {}),
-            "weather": {
-                "location": "Bhubaneswar, IN",
-                "solar_radiation": weather_generation.get("rawWeather", {}).get("direct_radiation", 0),
-                "wind_speed": weather_generation.get("rawWeather", {}).get("wind_speed_10m", 0),
-                "cloud_cover": weather_generation.get("rawWeather", {}).get("cloud_cover", 0),
-                "temperature": weather_generation.get("rawWeather", {}).get("temperature_2m", 0)
-            },
+            "weather": weather,
             "carbonIntensity": carbon_intensity,
-            "frequency": round(enhanced.get("frequency", 50.0), 3),
-            "stability_score": enhanced.get("grid_stability_score", 100),
-            "total_gen": total_supply,
-            "solar_gen": enhanced.get("solar_generation", 0.0),
-            "wind_gen": enhanced.get("wind_generation", 0.0),
-            "battery_soc": battery_percent,
-            "battery_current": battery_current,
-            "battery_capacity": enhanced.get("battery_capacity", config.battery_capacity),
+            "frequency": dashboard.get("frequency", 50.0),
+            "stability_score": dashboard.get("grid_stability_score", 100),
+            "total_gen": dashboard.get("total_generation", 0.0),
+            "solar_gen": dashboard.get("solar_generation", 0.0),
+            "wind_gen": dashboard.get("wind_generation", 0.0),
+            "battery_soc": dashboard.get("battery_percent", 0.0),
+            "battery_current": dashboard.get("battery_current", 0.0),
+            "battery_capacity": dashboard.get("battery_capacity", 500.0),
             "renewable_pc": 100.0,
-            "status": enhanced.get("status", "stable"),
+            "status": dashboard.get("status", "stable"),
             "decisions_made": balancing_engine.decision_count,
             "timestamp": datetime.utcnow().isoformat()
         }
-
-    @staticmethod
-    def get_system_metrics() -> Dict:
-        return MetricsController._build_enhanced_metrics()
 
 
 # Explicit exports so routes can import all controllers

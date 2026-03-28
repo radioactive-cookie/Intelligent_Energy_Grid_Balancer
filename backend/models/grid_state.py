@@ -17,6 +17,7 @@ class GridState(BaseModel):
     imbalance: float = Field(default=0, description="Generation - Demand imbalance in MW")
     solar_mw: float = Field(default=0, description="Solar generation in MW")
     wind_mw: float = Field(default=0, description="Wind generation in MW")
+    carbon_intensity: Optional[float] = Field(default=0, description="Carbon intensity in gCO2/kWh")
     
     class Config:
         json_schema_extra = {

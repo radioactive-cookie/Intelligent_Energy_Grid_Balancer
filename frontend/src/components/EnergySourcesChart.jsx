@@ -13,10 +13,10 @@ function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const p = payload[0];
   return (
-    <div className="bg-slate-800 border border-slate-600/50 rounded-lg p-3 text-xs shadow-xl">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600/50 rounded-lg p-3 text-xs shadow-xl transition-colors duration-300">
       <p className="text-slate-300 font-medium">{label}</p>
       <p className="font-bold tabular-nums mt-1" style={{ color: p.fill }}>
-        {Number(p.value).toFixed(1)} kW
+        {Number(p.value).toFixed(1)} MW
       </p>
     </div>
   );
@@ -35,7 +35,7 @@ export default function EnergySourcesChart({ energy = {}, battery = {} }) {
         <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
           Energy Sources
         </h3>
-        <span className="text-xs text-slate-500">Current (kW)</span>
+        <span className="text-xs text-slate-500">Current (MW)</span>
       </div>
 
       <div className="flex-1 min-h-[220px]">

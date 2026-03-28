@@ -4,12 +4,6 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { getGridStatus } from './services/api';
 import Dashboard from './components/Dashboard';
 
-function getGridStatusFromDelta(delta) {
-  if (delta > 0) return 'SURPLUS';
-  if (delta < 0) return 'DEFICIT';
-  return 'BALANCED';
-}
-
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [gridData, setGridData] = useState(null);
@@ -44,13 +38,32 @@ export default function App() {
 
   const applyScenario = useCallback((base) => {
     if (!base) return base;
+    
+    // Core multipliers
     const demandActual = (base.demand?.actual ?? 0) * scenario.demandMultiplier;
     const solar = (base.energy?.solar ?? 0) * scenario.solarMultiplier;
     const wind = (base.energy?.wind ?? 0) * scenario.windMultiplier;
     const total = solar + wind;
     const delta = total - demandActual;
     const battery = base.battery || {};
-    const nextStatus = getGridStatusFromDelta(delta);
+    const nextStatus = delta > 0 ? 'SURPLUS' : delta < 0 ? 'DEFICIT' : 'BALANCED';
+
+    // Calculate dynamic carbon intensity based on the shifted energy mix
+    const I_SOLAR = 12.0;
+    const I_WIND = 11.0;
+    const I_GRID = base.grid?.carbonIntensity || 450.0;
+    
+    let carbonIntensity = I_GRID;
+    if (total > 0 || demandActual > 0) {
+      if (total >= demandActual) {
+        // Fully renewable (excess goes to battery)
+        carbonIntensity = (solar * I_SOLAR + wind * I_WIND) / (total || 1);
+      } else {
+        // Renewable + Grid Deficit (Thermal)
+        const gridDeficit = demandActual - total;
+        carbonIntensity = (solar * I_SOLAR + wind * I_WIND + gridDeficit * I_GRID) / (demandActual || 1);
+      }
+    }
 
     return {
       ...base,
@@ -75,9 +88,10 @@ export default function App() {
         ...(base.grid || {}),
         delta,
         gridStatus: nextStatus,
+        carbonIntensity: Math.round(carbonIntensity),
       },
     };
-  }, [scenario.demandMultiplier, scenario.solarMultiplier, scenario.windMultiplier]);
+  }, [scenario]);
 
   // Merge WebSocket data - use directly as it's already mapped in the hook
   useEffect(() => {
@@ -112,10 +126,11 @@ export default function App() {
       const delta = supply - demandActual;
       const surplus = Math.max(0, delta);
       const deficit = Math.max(0, -delta);
-      const nextGridStatus =
-        (data.status ?? data.grid_status) === 'critical'
-          ? 'CRITICAL'
-          : getGridStatusFromDelta(delta);
+      const gridStatusMap = {
+        stable: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
+        warning: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
+        critical: 'CRITICAL',
+      };
       const mappedData = {
         energy: {
           total: supply,
@@ -140,22 +155,17 @@ export default function App() {
         },
         grid: {
           frequency: data.frequency ?? 50.0,
-          gridStatus: nextGridStatus,
+          gridStatus: gridStatusMap[data.status ?? data.grid_status] ?? 'BALANCED',
           efficiency: data.efficiency ?? 0,
           action: 'balanced',
           delta,
           alerts: [],
-          carbonIntensity: data.carbonIntensity ?? null,
+          carbonIntensity: data.carbonIntensity ?? 450,
         },
         timestamp: data.timestamp ?? new Date().toISOString(),
-<<<<<<< HEAD
       };
       setRawGridData(mappedData);
       setGridData(applyScenario(mappedData));
-=======
-        weather: data.weather || { location: 'Bhubaneswar, IN', solar_radiation: 0, wind_speed: 0 }
-      });
->>>>>>> 247310a (🌐 REAL-WORLD DATA: Integrated Bhubaneswar live weather telemetry & Optimized Vercel deployment folder structure)
       setLastUpdated(new Date());
     } catch (err) {
       console.error('[App] Grid status fetch failed:', err.message);
@@ -219,17 +229,9 @@ export default function App() {
                 <h1 className="text-lg sm:text-xl font-bold gradient-text leading-tight">
                   Intelligent Energy Grid Balancer
                 </h1>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <p className="text-[10px] uppercase tracking-tighter text-cyan-400 font-semibold">
-                    Live: {gridData?.weather?.location || 'Bhubaneswar, IN'}
-                  </p>
-                  {gridData?.weather && (
-                    <span className="text-[10px] text-slate-500 border-l border-slate-800 pl-2">
-                      {Math.round(gridData.weather.solar_radiation)} W/m² • {Math.round(gridData.weather.wind_speed)} km/h
-                    </span>
-                  )}
-                </div>
+                <p className="text-xs text-slate-500 hidden sm:block">
+                  Real-time renewable energy management
+                </p>
               </div>
             </div>
 
