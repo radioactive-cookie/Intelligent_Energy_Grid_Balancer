@@ -29,6 +29,7 @@ gridHistory = []
 BASE_MAX_LOAD = float(os.getenv("MAX_BASE_LOAD", "600"))
 MAX_SOLAR_OUTPUT = float(os.getenv("MAX_SOLAR_OUTPUT", "500"))
 MAX_WIND_OUTPUT = float(os.getenv("MAX_WIND_OUTPUT", "300"))
+HOUSES_PLACEHOLDER_COUNT = 0
 
 
 class ScenarioSimulationRequest(BaseModel):
@@ -72,14 +73,14 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
     snapshot_hour = now.hour if hour is None else hour
 
     dashboard = simulation_state.get_dashboard()
-    simulated_inputs = {
+    fallback_generation = {
         "solar_mw": float(dashboard.get("solar_generation", dashboard.get("solar_mw", 0.0))),
         "wind_mw": float(dashboard.get("wind_generation", dashboard.get("wind_mw", 0.0))),
     }
     # Prefer real weather-derived generation when available and safely fall back to simulation values.
-    weather_generation = real_data_fetcher.get_generation(simulated_inputs)
-    solar = round(float(weather_generation.get("solar_mw", simulated_inputs["solar_mw"])), 1)
-    wind = round(float(weather_generation.get("wind_mw", simulated_inputs["wind_mw"])), 1)
+    weather_generation = real_data_fetcher.get_generation(fallback_generation)
+    solar = round(float(weather_generation.get("solar_mw", fallback_generation["solar_mw"])), 1)
+    wind = round(float(weather_generation.get("wind_mw", fallback_generation["wind_mw"])), 1)
     supply = round(solar + wind, 1)
     predicted = round(float(dashboard.get("demand", dashboard.get("demand_mw", 0.0))), 1)
     actual = round(
@@ -112,20 +113,25 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
 
     action = "storing" if is_charging else "releasing" if is_draining else "idle"
     carbon_intensity = carbon_service.get_carbon_intensity()
+    data_source = weather_generation.get("dataSource", "simulated")
+    raw_weather = weather_generation.get("rawWeather", {})
     grid_status = "SURPLUS" if delta >= 0 else "DEFICIT"
     sources = {
         "solar": solar,
         "wind": wind,
     }
 
+    # Keep both nested and top-level fields for compatibility:
+    # - nested fields support existing dashboard component bindings
+    # - top-level fields match the hackathon demo response contract
     return {
         "energy": {
             "solar": solar,
             "wind": wind,
             "total": supply,
             "hour": snapshot_hour,
-            "dataSource": weather_generation.get("dataSource", "simulated"),
-            "rawWeather": weather_generation.get("rawWeather", {}),
+            "dataSource": data_source,
+            "rawWeather": raw_weather,
         },
         "demand": {
             "predicted": predicted,
@@ -154,11 +160,12 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
         "total_demand": actual,
         "battery_level": battery_percentage,
         "grid_status": grid_status,
-        "houses": 0,
+        # Temporary placeholder until explicit house telemetry is introduced.
+        "houses": HOUSES_PLACEHOLDER_COUNT,
         "alerts": alerts,
         "sources": sources,
-        "dataSource": weather_generation.get("dataSource", "simulated"),
-        "rawWeather": weather_generation.get("rawWeather", {}),
+        "dataSource": data_source,
+        "rawWeather": raw_weather,
         "carbonIntensity": carbon_intensity,
         "timestamp": now.isoformat(),
     }
