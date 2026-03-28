@@ -67,7 +67,7 @@ cp backend/.env.example backend/.env
 
 | Variable                  | Default               | Description                               |
 |---------------------------|-----------------------|-------------------------------------------|
-| `PORT`                    | 3001                  | Backend HTTP/WS port                      |
+| `PORT`                    | 8000                  | Backend HTTP/WS port                      |
 | `BATTERY_CAPACITY`        | 1000                  | Battery capacity in kWh                   |
 | `INITIAL_BATTERY_LEVEL`   | 60                    | Initial battery level (%)                 |
 | `IMBALANCE_THRESHOLD`     | 20                    | Imbalance % that triggers alerts          |
@@ -109,7 +109,7 @@ See [docs/API.md](./docs/API.md) for full documentation.
 
 ```
 /
-├── backend/          Node.js + Express API + WebSocket server
+├── backend/          Python FastAPI + WebSocket server
 ├── frontend/         React + Vite + TailwindCSS SPA
 ├── docs/             API documentation
 └── package.json      Monorepo root scripts

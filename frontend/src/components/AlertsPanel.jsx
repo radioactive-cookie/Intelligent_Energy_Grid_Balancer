@@ -34,7 +34,13 @@ const SEVERITY_CONFIG = {
 const AUTO_DISMISS_MS = 30_000;
 
 function AlertItem({ alert, onDismiss }) {
-  const cfg = SEVERITY_CONFIG[alert.severity] || SEVERITY_CONFIG.info;
+  const severityKey =
+    alert.type === 'critical'
+      ? 'critical'
+      : alert.type === 'warning'
+        ? 'warning'
+        : alert.severity;
+  const cfg = SEVERITY_CONFIG[severityKey] || SEVERITY_CONFIG.info;
   const Icon = cfg.icon;
 
   useEffect(() => {

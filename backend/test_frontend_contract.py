@@ -170,6 +170,54 @@ def test_history_buffer_is_rolling():
     assert len(history_response["history"]) == app_main.MAX_HISTORY
 
 
+def test_api_alerts_endpoint_and_event_schema():
+    app_main.alertHistory.clear()
+    app_main.alertHistory.extend(
+        [
+            {
+                "id": "alert-2",
+                "type": "critical",
+                "severity": "critical",
+                "message": "Battery critically low",
+                "timestamp": "2026-01-01T00:00:01Z",
+            },
+            {
+                "id": "alert-1",
+                "type": "warning",
+                "severity": "warning",
+                "message": "Peak demand alert",
+                "timestamp": "2026-01-01T00:00:00Z",
+                "affectedZones": ["Zone A"],
+            },
+        ]
+    )
+    response = asyncio.run(app_main.get_api_alerts(limit=1))
+    assert response["count"] == 1
+    assert len(response["alerts"]) == 1
+    assert response["alerts"][0]["type"] in ("warning", "critical")
+    assert "message" in response["alerts"][0]
+    assert "timestamp" in response["alerts"][0]
+
+
+def test_build_alert_events_emits_peak_and_battery_alerts():
+    snapshot = {
+        "total_supply": 200.0,
+        "total_demand": 500.0,
+        "battery_level": 8.5,
+        "demand": {"hour": 18},
+    }
+    events = app_main.build_alert_events(snapshot)
+    assert len(events) >= 2
+    types = {event["type"] for event in events}
+    assert "warning" in types or "critical" in types
+    assert "critical" in types
+    for event in events:
+        assert "id" in event
+        assert "severity" in event
+        assert "message" in event
+        assert "timestamp" in event
+
+
 if __name__ == "__main__":
     test_compute_grid_snapshot_contract()
     test_api_predict_demand_has_predicted_and_actual()
@@ -177,4 +225,6 @@ if __name__ == "__main__":
     test_api_balance_grid_has_enriched_fields()
     test_api_simulate_scenario_contract_and_calculations()
     test_history_buffer_is_rolling()
+    test_api_alerts_endpoint_and_event_schema()
+    test_build_alert_events_emits_peak_and_battery_alerts()
     print("✅ Frontend contract tests passed")

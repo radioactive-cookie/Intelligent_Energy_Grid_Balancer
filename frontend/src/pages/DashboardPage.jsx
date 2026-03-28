@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Zap, Moon, Sun, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getGridStatus } from '../services/api';
@@ -8,6 +8,13 @@ function getGridStatusFromDelta(delta) {
   if (delta > 0) return 'SURPLUS';
   if (delta < 0) return 'DEFICIT';
   return 'BALANCED';
+}
+
+function normalizeAlertSeverity(alert) {
+  if (alert?.severity) return alert.severity;
+  if (alert?.type === 'critical') return 'critical';
+  if (alert?.type === 'warning') return 'warning';
+  return 'info';
 }
 
 export default function DashboardPage() {
@@ -23,6 +30,7 @@ export default function DashboardPage() {
     solarMultiplier: 1,
     windMultiplier: 1,
   });
+  const alertIdCounterRef = useRef(0);
 
   useEffect(() => {
     if (!introPlaying) {
@@ -104,13 +112,20 @@ export default function DashboardPage() {
       setIsLoading(false);
       setLastUpdated(new Date());
 
-      const alertsList = wsData.grid?.alerts || wsData.alerts;
+      const alertsList =
+        (Array.isArray(wsData.alertEvents) && wsData.alertEvents.length > 0 && wsData.alertEvents)
+        || (Array.isArray(wsData.alerts) && wsData.alerts.length > 0 && wsData.alerts)
+        || wsData.grid?.alerts;
       if (alertsList?.length > 0) {
         setAlerts((prev) => {
-          const incoming = alertsList.map((a) => ({
-            ...a,
-            id: `${a.type}-${Date.now()}-${Math.random()}`,
-          }));
+          const incoming = alertsList
+            .filter((a) => typeof a === 'object' && a !== null)
+            .map((a) => ({
+              ...a,
+              id: a.id || `${a.type || a.severity || 'alert'}-${Date.now()}-${++alertIdCounterRef.current}`,
+              type: a.type || 'info',
+              severity: normalizeAlertSeverity(a),
+            }));
           const merged = [...incoming, ...prev].slice(0, 20);
           return merged;
         });
