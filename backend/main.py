@@ -16,7 +16,7 @@ from config import get_settings
 from routes import router
 from utils import setup_logging, get_logger
 from controllers import GridController, AlertController
-from services import simulation_state, simulation_engine
+from services import simulation_state, simulation_engine, real_data_fetcher, carbon_service
 
 logger = None
 settings = None
@@ -72,9 +72,15 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
     snapshot_hour = now.hour if hour is None else hour
 
     dashboard = simulation_state.get_dashboard()
-    solar = round(float(dashboard.get("solar_generation", dashboard.get("solar_mw", 0.0))), 1)
-    wind = round(float(dashboard.get("wind_generation", dashboard.get("wind_mw", 0.0))), 1)
-    supply = round(float(dashboard.get("total_generation", solar + wind)), 1)
+    simulated_inputs = {
+        "solar_mw": float(dashboard.get("solar_generation", dashboard.get("solar_mw", 0.0))),
+        "wind_mw": float(dashboard.get("wind_generation", dashboard.get("wind_mw", 0.0))),
+    }
+    # Prefer real weather-derived generation when available and safely fall back to simulation values.
+    weather_generation = real_data_fetcher.get_generation(simulated_inputs)
+    solar = round(float(weather_generation.get("solar_mw", simulated_inputs["solar_mw"])), 1)
+    wind = round(float(weather_generation.get("wind_mw", simulated_inputs["wind_mw"])), 1)
+    supply = round(solar + wind, 1)
     predicted = round(float(dashboard.get("demand", dashboard.get("demand_mw", 0.0))), 1)
     actual = round(
         predicted + (random.random() * DEMAND_NOISE_SPAN_KW - DEMAND_NOISE_OFFSET_KW), 1
@@ -105,6 +111,12 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
         alerts.append("BATTERY_CRITICAL")
 
     action = "storing" if is_charging else "releasing" if is_draining else "idle"
+    carbon_intensity = carbon_service.get_carbon_intensity()
+    grid_status = "SURPLUS" if delta >= 0 else "DEFICIT"
+    sources = {
+        "solar": solar,
+        "wind": wind,
+    }
 
     return {
         "energy": {
@@ -112,6 +124,8 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
             "wind": wind,
             "total": supply,
             "hour": snapshot_hour,
+            "dataSource": weather_generation.get("dataSource", "simulated"),
+            "rawWeather": weather_generation.get("rawWeather", {}),
         },
         "demand": {
             "predicted": predicted,
@@ -129,11 +143,23 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
         },
         "grid": {
             "action": action,
-            "gridStatus": "SURPLUS" if delta >= 0 else "DEFICIT",
+            "gridStatus": grid_status,
             "efficiency": efficiency,
             "delta": delta,
             "alerts": alerts,
+            "carbonIntensity": carbon_intensity,
         },
+        # Frontend-compatible top-level summary payload.
+        "total_supply": supply,
+        "total_demand": actual,
+        "battery_level": battery_percentage,
+        "grid_status": grid_status,
+        "houses": 0,
+        "alerts": alerts,
+        "sources": sources,
+        "dataSource": weather_generation.get("dataSource", "simulated"),
+        "rawWeather": weather_generation.get("rawWeather", {}),
+        "carbonIntensity": carbon_intensity,
         "timestamp": now.isoformat(),
     }
 
@@ -350,6 +376,15 @@ async def get_api_balance_grid(hour: Optional[int] = None):
         "alerts": snapshot["grid"]["alerts"],
         "battery": snapshot["battery"],
         "energy": snapshot["energy"],
+        "sources": snapshot["sources"],
+        "total_supply": snapshot["total_supply"],
+        "total_demand": snapshot["total_demand"],
+        "battery_level": snapshot["battery_level"],
+        "grid_status": snapshot["grid_status"],
+        "houses": snapshot["houses"],
+        "dataSource": snapshot["dataSource"],
+        "rawWeather": snapshot["rawWeather"],
+        "carbonIntensity": snapshot["carbonIntensity"],
     }
 
 
