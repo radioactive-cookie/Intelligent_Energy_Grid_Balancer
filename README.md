@@ -78,6 +78,17 @@ cp backend/.env.example backend/.env
 | `PEAK_DEMAND_MULTIPLIER`  | 1.5                   | Demand multiplier during peak hours       |
 | `FRONTEND_URL`            | https://intelligent-energy-grid-balancer.vercel.app | CORS allowed origin                       |
 
+### AI Balancer Setup
+
+The "Run AI Balancer" feature uses GitHub Models (free AI inference).
+
+1. Go to https://github.com/settings/tokens
+2. Click "Generate new token" → "Fine-grained tokens"
+3. Under "Permissions", find "Models" and set it to **Read-only**
+4. Copy the token and add it to `backend/.env` as `GITHUB_TOKEN=ghp_...`
+
+No paid API key required — this works with any free GitHub account.
+
 ---
 
 ## 🏗️ Tech Stack

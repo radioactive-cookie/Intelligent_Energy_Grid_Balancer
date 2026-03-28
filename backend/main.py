@@ -3,6 +3,8 @@ from typing import Optional
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from pydantic import BaseModel, Field
 import asyncio
 import os
@@ -10,6 +12,7 @@ import logging
 import random
 import math
 import uuid
+import traceback
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -19,6 +22,7 @@ from utils import setup_logging, get_logger
 from controllers import GridController, AlertController
 from services.weather_service import weather_service
 from services import simulation_state, simulation_engine, real_data_fetcher, carbon_service
+from services.ai_balancer_service import run_ai_balancer
 
 logger = None
 settings = None
@@ -471,6 +475,38 @@ async def get_api_balance_grid(hour: Optional[int] = None):
 @app.post("/api/balance-grid")
 async def post_api_balance_grid(hour: Optional[int] = None):
     return await get_api_balance_grid(hour)
+
+
+@app.post("/api/ai-balance")
+async def ai_balance_grid(request: Request):
+    """
+    Accepts current grid state as JSON, sends it to the GitHub Models AI,
+    returns an AI-generated balancing decision.
+    """
+    try:
+        body = await request.json()
+        decision = run_ai_balancer(body)
+        return JSONResponse(content={"success": True, "decision": decision})
+    except ValueError as e:
+        # Missing GITHUB_TOKEN
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": "GitHub Models API not configured. Please set the GITHUB_TOKEN environment variable.",
+                "detail": str(e),
+            },
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": "AI balancer failed",
+                "detail": str(e),
+            },
+        )
 
 
 @app.post("/api/simulate-scenario")
