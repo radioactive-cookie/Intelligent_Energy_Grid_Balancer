@@ -1,6 +1,6 @@
 """Main FastAPI Application"""
 from typing import Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -9,6 +9,7 @@ import os
 import logging
 import random
 import math
+import uuid
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -26,11 +27,14 @@ DEMAND_NOISE_SPAN_KW = DEMAND_NOISE_OFFSET_KW * 2
 # MW delta threshold used to raise SURPLUS/DEFICIT alerts when imbalance is material.
 IMBALANCE_THRESHOLD = float(os.getenv("IMBALANCE_THRESHOLD", "20"))
 MAX_HISTORY = 20
+MAX_ALERT_HISTORY = 200
 gridHistory = []
+alertHistory = []
 BASE_MAX_LOAD = float(os.getenv("MAX_BASE_LOAD", "600"))
 MAX_SOLAR_OUTPUT = float(os.getenv("MAX_SOLAR_OUTPUT", "500"))
 MAX_WIND_OUTPUT = float(os.getenv("MAX_WIND_OUTPUT", "300"))
 HOUSES_PLACEHOLDER_COUNT = 0
+BATTERY_CRITICAL_ALERT_THRESHOLD = 15.0
 
 
 class ScenarioSimulationRequest(BaseModel):
@@ -171,6 +175,52 @@ def computeGridSnapshot(hour: Optional[int] = None) -> dict:
         "timestamp": now.isoformat(),
     }
 
+
+def build_alert_events(snapshot: dict) -> list[dict]:
+    """Build rich alert events from a snapshot while keeping legacy string alerts intact."""
+    demand = float(snapshot.get("total_demand", 0.0) or 0.0)
+    supply = float(snapshot.get("total_supply", 0.0) or 0.0)
+    battery_level = float(snapshot.get("battery_level", 0.0) or 0.0)
+    hour = int(snapshot.get("demand", {}).get("hour", datetime.utcnow().hour))
+
+    imbalance_pct = abs((supply - demand) / demand) * 100 if demand > 0 else 0.0
+    is_peak_hour = 8 <= hour <= 21
+
+    events = []
+    now_iso = datetime.utcnow().isoformat() + "Z"
+
+    if is_peak_hour and demand > supply and imbalance_pct > IMBALANCE_THRESHOLD:
+        severity = "critical" if imbalance_pct > 40 else "warning"
+        events.append(
+            {
+                "id": f"peak-demand-{uuid.uuid4()}",
+                "type": "critical" if severity == "critical" else "warning",
+                "severity": severity,
+                "message": (
+                    f"⚡ Peak demand alert: Grid deficit of {imbalance_pct:.1f}%. "
+                    "Households advised to reduce consumption."
+                ),
+                "timestamp": now_iso,
+                "affectedZones": ["Zone A", "Zone B", "Zone C"],
+            }
+        )
+
+    if battery_level < BATTERY_CRITICAL_ALERT_THRESHOLD:
+        events.append(
+            {
+                "id": f"battery-low-{uuid.uuid4()}",
+                "type": "critical",
+                "severity": "critical",
+                "message": (
+                    f"🔋 Battery critically low ({battery_level:.1f}%). "
+                    "Initiating demand reduction protocol."
+                ),
+                "timestamp": now_iso,
+            }
+        )
+
+    return events
+
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
@@ -231,6 +281,11 @@ async def monitor_and_broadcast():
             gridHistory.append(snapshot)
             if len(gridHistory) > MAX_HISTORY:
                 gridHistory.pop(0)
+            alert_events = build_alert_events(snapshot)
+            if alert_events:
+                alertHistory[:] = alert_events + alertHistory
+                if len(alertHistory) > MAX_ALERT_HISTORY:
+                    del alertHistory[MAX_ALERT_HISTORY:]
 
             if manager.active_connections:
                 try:
@@ -245,7 +300,10 @@ async def monitor_and_broadcast():
                     monitor_and_broadcast.weather_counter += 1
                     await manager.broadcast({
                         "type": "GRID_UPDATE",
-                        "data": snapshot
+                        "data": {
+                            **snapshot,
+                            "alertEvents": alert_events,
+                        }
                     })
                 except Exception as e:
                     logger.error(f"Error in broadcast: {e}")
@@ -348,6 +406,11 @@ async def websocket_grid_endpoint(websocket: WebSocket):
 @app.get("/api/history")
 async def get_api_history():
     return {"history": gridHistory, "count": len(gridHistory)}
+
+
+@app.get("/api/alerts")
+async def get_api_alerts(limit: int = Query(default=50, ge=1, le=200)):
+    return {"alerts": alertHistory[:limit], "count": len(alertHistory[:limit])}
 
 
 @app.get("/api/predict-demand")

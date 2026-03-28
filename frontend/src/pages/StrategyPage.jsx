@@ -323,7 +323,7 @@ export default function StrategyPage() {
         <div className="max-w-[1400px] mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="inline-flex items-center gap-2 text-cyan-200 hover:text-cyan-100"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -114,6 +114,7 @@ export function useWebSocket() {
                 alerts: m.alerts?.active || [],
                 carbonIntensity: m.carbonIntensity ?? null,
               },
+              alerts: m.alertEvents ?? [],
               timestamp: m.timestamp,
               weather: m.weather || { location: 'Bhubaneswar, IN', solar_radiation: 0, wind_speed: 0 }
             });
