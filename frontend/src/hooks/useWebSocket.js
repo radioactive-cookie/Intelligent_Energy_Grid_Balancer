@@ -27,9 +27,7 @@ function getWsUrl() {
 
 const WS_URL = getWsUrl();
 
-// 3s reconnect delay is intentionally shorter than the 5s backend broadcast interval
-// so the client re-establishes the connection before the next update is missed.
-const RECONNECT_DELAY = 3000;
+const RECONNECT_DELAY = 5000;
 
 export function useWebSocket() {
   const [data, setData] = useState(null);
@@ -38,6 +36,16 @@ export function useWebSocket() {
   const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
   const unmounted = useRef(false);
+  const reconnectScheduled = useRef(false);
+
+  const scheduleReconnect = useCallback(() => {
+    if (unmounted.current || reconnectScheduled.current) return;
+    reconnectScheduled.current = true;
+    reconnectTimer.current = setTimeout(() => {
+      reconnectScheduled.current = false;
+      connect();
+    }, RECONNECT_DELAY);
+  }, []);
 
   const connect = useCallback(() => {
     if (unmounted.current) return;
@@ -48,6 +56,8 @@ export function useWebSocket() {
 
       ws.onopen = () => {
         if (unmounted.current) return;
+        clearTimeout(reconnectTimer.current);
+        reconnectScheduled.current = false;
         setIsConnected(true);
         setError(null);
       };
@@ -109,23 +119,24 @@ export function useWebSocket() {
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
         if (unmounted.current) return;
-        console.error('[WebSocket] Connection error:', WS_URL);
+        console.error('[WebSocket] Connection error:', WS_URL, err);
         setError('WebSocket connection error');
+        ws.close();
       };
 
       ws.onclose = () => {
         if (unmounted.current) return;
         setIsConnected(false);
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
+        scheduleReconnect();
       };
     } catch (err) {
       console.error('[WebSocket] Failed to create connection:', err);
       setError(err.message);
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
+      scheduleReconnect();
     }
-  }, []);
+  }, [scheduleReconnect]);
 
   useEffect(() => {
     unmounted.current = false;
@@ -133,6 +144,7 @@ export function useWebSocket() {
     return () => {
       unmounted.current = true;
       clearTimeout(reconnectTimer.current);
+      reconnectScheduled.current = false;
       if (wsRef.current) wsRef.current.close();
     };
   }, [connect]);
