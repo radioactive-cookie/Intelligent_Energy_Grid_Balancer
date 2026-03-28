@@ -46,15 +46,17 @@ export function useWebSocket() {
             const battCap = m.battery_capacity ?? 1000;
             const battSoc = m.battery_soc ?? ((battUnits / (battCap || 1)) * 100);
             
-            setData({
-              energy: {
-                total: m.total_gen ?? 0,
-                solar: m.solar_gen ?? 0,
-                wind: m.wind_gen ?? 0,
-              },
-              demand: {
-                actual: m.total_demand ?? 0,
-                predicted: m.total_demand ?? 0,
+              setData({
+                energy: {
+                  total: m.total_gen ?? 0,
+                  solar: m.solar_gen ?? 0,
+                  wind: m.wind_gen ?? 0,
+                  dataSource: m.dataSource ?? 'simulated',
+                  rawWeather: m.rawWeather ?? {},
+                },
+                demand: {
+                  actual: m.total_demand ?? 0,
+                  predicted: m.total_demand ?? 0,
                 pattern: 'off-peak',
                 hour: new Date().getHours(),
               },
@@ -66,21 +68,22 @@ export function useWebSocket() {
                 isDraining: (m.total_gen ?? 0) < (m.total_demand ?? 0),
                 chargingRate: Math.abs((m.total_gen ?? 0) - (m.total_demand ?? 0)),
               },
-              grid: {
-                frequency: m.frequency ?? 50.0,
-                gridStatus:
-                  m.stability_score >= 80
-                    ? 'BALANCED'
+                grid: {
+                  frequency: m.frequency ?? 50.0,
+                  gridStatus:
+                    m.stability_score >= 80
+                      ? 'BALANCED'
                     : m.stability_score >= 50
                     ? 'DEFICIT'
                     : 'CRITICAL',
                 efficiency: m.stability_score ?? 0,
-                action: 'balanced',
-                delta: (m.total_gen ?? 0) - (m.total_demand ?? 0),
-                alerts: m.alerts?.active || [],
-              },
-              timestamp: m.timestamp,
-            });
+                  action: 'balanced',
+                  delta: (m.total_gen ?? 0) - (m.total_demand ?? 0),
+                  alerts: m.alerts?.active || [],
+                  carbonIntensity: m.carbonIntensity ?? null,
+                },
+                timestamp: m.timestamp,
+              });
           }
         } catch {
           // ignore malformed messages

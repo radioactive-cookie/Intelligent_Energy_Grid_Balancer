@@ -4,13 +4,25 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { getGridStatus } from './services/api';
 import Dashboard from './components/Dashboard';
 
+function getGridStatusFromDelta(delta) {
+  if (delta > 0) return 'SURPLUS';
+  if (delta < 0) return 'DEFICIT';
+  return 'BALANCED';
+}
+
 export default function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [gridData, setGridData] = useState(null);
+  const [rawGridData, setRawGridData] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [introPlaying, setIntroPlaying] = useState(true);
+  const [scenario, setScenario] = useState({
+    demandMultiplier: 1,
+    solarMultiplier: 1,
+    windMultiplier: 1,
+  });
 
   // Force scroll to top when intro finishes
   useEffect(() => {
@@ -30,10 +42,48 @@ export default function App() {
 
   const { data: wsData, isConnected } = useWebSocket();
 
+  const applyScenario = useCallback((base) => {
+    if (!base) return base;
+    const demandActual = (base.demand?.actual ?? 0) * scenario.demandMultiplier;
+    const solar = (base.energy?.solar ?? 0) * scenario.solarMultiplier;
+    const wind = (base.energy?.wind ?? 0) * scenario.windMultiplier;
+    const total = solar + wind;
+    const delta = total - demandActual;
+    const battery = base.battery || {};
+    const nextStatus = getGridStatusFromDelta(delta);
+
+    return {
+      ...base,
+      energy: {
+        ...(base.energy || {}),
+        solar,
+        wind,
+        total,
+      },
+      demand: {
+        ...(base.demand || {}),
+        actual: demandActual,
+        predicted: demandActual,
+      },
+      battery: {
+        ...battery,
+        isCharging: delta > 0,
+        isDraining: delta < 0,
+        chargingRate: Math.abs(delta),
+      },
+      grid: {
+        ...(base.grid || {}),
+        delta,
+        gridStatus: nextStatus,
+      },
+    };
+  }, [scenario.demandMultiplier, scenario.solarMultiplier, scenario.windMultiplier]);
+
   // Merge WebSocket data - use directly as it's already mapped in the hook
   useEffect(() => {
     if (wsData) {
-      setGridData(wsData);
+      setRawGridData(wsData);
+      setGridData(applyScenario(wsData));
       setIsLoading(false);
       setLastUpdated(new Date());
 
@@ -50,61 +100,74 @@ export default function App() {
         });
       }
     }
-  }, [wsData]);
+  }, [wsData, applyScenario]);
 
   // Fallback polling when WebSocket is disconnected
   const fetchData = useCallback(async () => {
     try {
       const data = await getGridStatus();
       // Map the backend dashboard response to the frontend state structure
-      const surplus = data.surplus ?? 0;
-      const deficit = data.deficit ?? 0;
-      const gridStatusMap = {
-        stable: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
-        warning: surplus > 0 ? 'SURPLUS' : deficit > 0 ? 'DEFICIT' : 'BALANCED',
-        critical: 'CRITICAL',
-      };
-      setGridData({
+      const supply = data.total_supply ?? data.total_generation ?? data.total_gen ?? 0;
+      const demandActual = data.total_demand ?? data.demand ?? 0;
+      const delta = supply - demandActual;
+      const surplus = Math.max(0, delta);
+      const deficit = Math.max(0, -delta);
+      const nextGridStatus =
+        (data.status ?? data.grid_status) === 'critical'
+          ? 'CRITICAL'
+          : getGridStatusFromDelta(delta);
+      const mappedData = {
         energy: {
-          total: data.total_generation ?? 0,
-          solar: data.solar_mw ?? 0,
-          wind: data.wind_mw ?? 0,
+          total: supply,
+          solar: data.solar_gen ?? data.sources?.solar ?? 0,
+          wind: data.wind_gen ?? data.sources?.wind ?? 0,
+          dataSource: data.dataSource ?? 'simulated',
+          rawWeather: data.rawWeather ?? {},
         },
         demand: {
-          actual: data.demand ?? 0,
-          predicted: data.demand ?? 0,
+          actual: demandActual,
+          predicted: demandActual,
           pattern: 'off-peak',
           hour: new Date().getHours(),
         },
         battery: {
-          percentage: data.battery_percent ?? 0,
+          percentage: data.battery_soc ?? data.battery_percent ?? data.battery_level ?? 0,
           level: data.battery_current ?? 0,
           capacity: data.battery_capacity ?? 1000,
           isCharging: surplus > 0,
           isDraining: deficit > 0,
-          chargingRate: Math.abs(data.imbalance ?? 0),
+          chargingRate: Math.abs(delta),
         },
         grid: {
           frequency: data.frequency ?? 50.0,
-          gridStatus: gridStatusMap[data.status] ?? 'BALANCED',
+          gridStatus: nextGridStatus,
           efficiency: data.efficiency ?? 0,
           action: 'balanced',
-          delta: data.imbalance ?? 0,
+          delta,
           alerts: [],
+          carbonIntensity: data.carbonIntensity ?? null,
         },
         timestamp: data.timestamp ?? new Date().toISOString(),
-      });
+      };
+      setRawGridData(mappedData);
+      setGridData(applyScenario(mappedData));
       setLastUpdated(new Date());
     } catch (err) {
       console.error('[App] Grid status fetch failed:', err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyScenario]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (rawGridData) {
+      setGridData(applyScenario(rawGridData));
+    }
+  }, [scenario, rawGridData, applyScenario]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -200,6 +263,47 @@ export default function App() {
 
         {/* Main content */}
         <main className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-6 transition-all duration-1000 ${!isConnected && !isLoading ? 'grayscale opacity-75' : ''}`}>
+          <div className="glass-card p-4 mb-6">
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Scenario Simulation</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="text-xs text-slate-300">
+                Demand Multiplier: {scenario.demandMultiplier.toFixed(2)}x
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value={scenario.demandMultiplier}
+                  onChange={(e) => setScenario((s) => ({ ...s, demandMultiplier: Number(e.target.value) }))}
+                  className="w-full mt-2"
+                />
+              </label>
+              <label className="text-xs text-slate-300">
+                Solar Multiplier: {scenario.solarMultiplier.toFixed(2)}x
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={scenario.solarMultiplier}
+                  onChange={(e) => setScenario((s) => ({ ...s, solarMultiplier: Number(e.target.value) }))}
+                  className="w-full mt-2"
+                />
+              </label>
+              <label className="text-xs text-slate-300">
+                Wind Multiplier: {scenario.windMultiplier.toFixed(2)}x
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={scenario.windMultiplier}
+                  onChange={(e) => setScenario((s) => ({ ...s, windMultiplier: Number(e.target.value) }))}
+                  className="w-full mt-2"
+                />
+              </label>
+            </div>
+          </div>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
               <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />

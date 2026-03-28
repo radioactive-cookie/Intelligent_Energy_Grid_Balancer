@@ -8,13 +8,16 @@ from datetime import datetime
 
 from models.grid_state import GridState
 from models.battery_storage import BatteryStorage
+from services.dashboard_calculator import DashboardCalculator, DashboardInputs
 from services import (
     balancing_engine,
     prediction_service,
     monitoring_service,
     data_storage_service,
     simulation_state,
-    simulation_engine
+    simulation_engine,
+    real_data_fetcher,
+    carbon_service,
 )
 from utils import get_logger
 
@@ -391,27 +394,61 @@ class MetricsController:
     """Unified Metrics for the Frontend Dashboard"""
 
     @staticmethod
-    def get_system_metrics() -> Dict:
-        dashboard = simulation_state.get_dashboard()
+    def _build_enhanced_metrics() -> Dict:
+        current_inputs = simulation_state.get_inputs()
+        weather_generation = real_data_fetcher.get_generation(current_inputs)
+        # Demand intentionally comes from operator-configured simulation inputs while
+        # generation can switch between real-weather and simulated sources.
+        enhanced_inputs = DashboardInputs(
+            solar_mw=weather_generation["solar_mw"],
+            wind_mw=weather_generation["wind_mw"],
+            demand_mw=current_inputs.get("demand_mw", 0.0),
+            battery_current=current_inputs.get("battery_current", 0.0),
+            battery_capacity=current_inputs.get("battery_capacity", simulation_engine.config.battery_capacity),
+        )
+        # Calculate derived metrics from the selected data source without mutating shared simulation state.
+        enhanced = DashboardCalculator.calculate_dashboard(enhanced_inputs)
         config = simulation_engine.config
         alerts = monitoring_service.get_alert_stats()
+        carbon_intensity = carbon_service.get_carbon_intensity()
+
+        total_supply = enhanced.get("total_generation", 0.0)
+        total_demand = enhanced.get("demand", 0.0)
+        battery_percent = enhanced.get("battery_percent", 0.0)
+        battery_current = enhanced.get("battery_current", 0.0)
 
         return {
-            "frequency": round(dashboard.get("frequency", 50.0), 3),
-            "stability_score": dashboard.get("grid_stability_score", 100),
-            "total_gen": dashboard.get("total_generation", 0.0),
-            "solar_gen": dashboard.get("solar_generation", 0.0),
-            "wind_gen": dashboard.get("wind_generation", 0.0),
-            "total_demand": dashboard.get("demand", 0.0),
-            "battery_soc": round((config.battery_current / config.battery_capacity) * 100, 2),
-            "battery_current": round(config.battery_current, 2),
-            "battery_capacity": config.battery_capacity,
-            "renewable_pc": 100.0,
-            "status": dashboard.get("status", "stable"),
+            "total_supply": total_supply,
+            "total_demand": total_demand,
+            "battery_level": battery_percent,
+            "grid_status": enhanced.get("status", "stable"),
+            "houses": 0,
             "alerts": alerts,
+            "sources": {
+                "solar": enhanced.get("solar_generation", 0.0),
+                "wind": enhanced.get("wind_generation", 0.0),
+            },
+            "dataSource": weather_generation.get("dataSource", "simulated"),
+            "rawWeather": weather_generation.get("rawWeather", {}),
+            "carbonIntensity": carbon_intensity,
+            # Backward-compatible keys for existing UI mapping.
+            "frequency": round(enhanced.get("frequency", 50.0), 3),
+            "stability_score": enhanced.get("grid_stability_score", 100),
+            "total_gen": total_supply,
+            "solar_gen": enhanced.get("solar_generation", 0.0),
+            "wind_gen": enhanced.get("wind_generation", 0.0),
+            "battery_soc": battery_percent,
+            "battery_current": battery_current,
+            "battery_capacity": enhanced.get("battery_capacity", config.battery_capacity),
+            "renewable_pc": 100.0,
+            "status": enhanced.get("status", "stable"),
             "decisions_made": balancing_engine.decision_count,
             "timestamp": datetime.utcnow().isoformat()
         }
+
+    @staticmethod
+    def get_system_metrics() -> Dict:
+        return MetricsController._build_enhanced_metrics()
 
 
 # Explicit exports so routes can import all controllers
