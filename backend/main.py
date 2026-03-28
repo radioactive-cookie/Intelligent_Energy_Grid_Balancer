@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import asyncio
 import json
+import os
+import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -94,9 +96,21 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+frontend_url = os.getenv("FRONTEND_URL")
+allowed_origins = [
+    frontend_url,
+    "https://intelligent-energy-grid-balancer.vercel.app",
+    "http://localhost:5173",
+]
+
+if not frontend_url:
+    logging.getLogger(__name__).warning(
+        "FRONTEND_URL is not set; CORS is limited to default production/dev origins."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin for origin in allowed_origins if origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

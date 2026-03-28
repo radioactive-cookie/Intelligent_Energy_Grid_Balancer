@@ -1,6 +1,7 @@
 """Routes for API endpoints"""
 from fastapi import APIRouter, Query
 from typing import Optional, List
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from controllers import (
     GridController,
@@ -290,7 +291,6 @@ async def get_system_metrics():
 async def health_check():
     """Health check endpoint"""
     return {
-        "status": "healthy",
-        "service": "Intelligent Energy Grid Balancer",
-        "version": "1.0.0"
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
