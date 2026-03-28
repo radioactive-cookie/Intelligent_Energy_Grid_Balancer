@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 .env.local
+frontend/.env.local
 logs/
 *.log
 .DS_Store

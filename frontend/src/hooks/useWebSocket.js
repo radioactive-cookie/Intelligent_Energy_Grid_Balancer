@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 function getWsUrl() {
+<<<<<<< HEAD
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
   // If running on localhost:5173 (Vite), point to the default backend port 8000
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -8,13 +9,35 @@ function getWsUrl() {
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}/ws`;
+=======
+  const isSecurePage = window.location.protocol === 'https:';
+  const wsScheme = isSecurePage ? 'wss' : 'ws';
+  const wsProtocol = `${wsScheme}://`;
+  const ensureLeadingSlash = (value) => `/${value.replace(/^\/+/, '')}`;
+
+  const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
+  if (configuredWsUrl) {
+    if (
+      configuredWsUrl.startsWith('ws://') ||
+      configuredWsUrl.startsWith('wss://')
+    ) {
+      return configuredWsUrl;
+    }
+    if (configuredWsUrl.startsWith('http://')) {
+      return configuredWsUrl.replace(/^http:\/\//, 'ws://');
+    }
+    if (configuredWsUrl.startsWith('https://')) {
+      return configuredWsUrl.replace(/^https:\/\//, 'wss://');
+    }
+    return `${wsProtocol}${window.location.host}${ensureLeadingSlash(configuredWsUrl)}`;
+  }
+  return `${wsProtocol}${window.location.host}/ws`;
+>>>>>>> 1f2a52ecf0159046cd2db518ab0f121bea39cd72
 }
 
 const WS_URL = getWsUrl();
 
-// 3s reconnect delay is intentionally shorter than the 5s backend broadcast interval
-// so the client re-establishes the connection before the next update is missed.
-const RECONNECT_DELAY = 3000;
+const RECONNECT_DELAY = 5000;
 
 export function useWebSocket() {
   const [data, setData] = useState(null);
@@ -23,6 +46,16 @@ export function useWebSocket() {
   const wsRef = useRef(null);
   const reconnectTimer = useRef(null);
   const unmounted = useRef(false);
+  const reconnectScheduled = useRef(false);
+
+  const scheduleReconnect = useCallback(() => {
+    if (unmounted.current || reconnectScheduled.current) return;
+    reconnectScheduled.current = true;
+    reconnectTimer.current = setTimeout(() => {
+      reconnectScheduled.current = false;
+      connect();
+    }, RECONNECT_DELAY);
+  }, []);
 
   const connect = useCallback(() => {
     if (unmounted.current) return;
@@ -33,6 +66,8 @@ export function useWebSocket() {
 
       ws.onopen = () => {
         if (unmounted.current) return;
+        clearTimeout(reconnectTimer.current);
+        reconnectScheduled.current = false;
         setIsConnected(true);
         setError(null);
       };
@@ -95,23 +130,24 @@ export function useWebSocket() {
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (err) => {
         if (unmounted.current) return;
-        console.error('[WebSocket] Connection error:', WS_URL);
+        console.error('[WebSocket] Connection error:', WS_URL, err);
         setError('WebSocket connection error');
+        ws.close();
       };
 
       ws.onclose = () => {
         if (unmounted.current) return;
         setIsConnected(false);
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
+        scheduleReconnect();
       };
     } catch (err) {
       console.error('[WebSocket] Failed to create connection:', err);
       setError(err.message);
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
+      scheduleReconnect();
     }
-  }, []);
+  }, [scheduleReconnect]);
 
   useEffect(() => {
     unmounted.current = false;
@@ -119,6 +155,7 @@ export function useWebSocket() {
     return () => {
       unmounted.current = true;
       clearTimeout(reconnectTimer.current);
+      reconnectScheduled.current = false;
       if (wsRef.current) wsRef.current.close();
     };
   }, [connect]);

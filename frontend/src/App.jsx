@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState, useEffect, useCallback } from 'react';
 import { Zap, Moon, Sun, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -195,145 +196,17 @@ export default function App() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+=======
+import { Routes, Route } from 'react-router-dom';
+import DashboardPage from './pages/DashboardPage';
+import StrategyPage from './pages/StrategyPage';
+
+export default function App() {
+>>>>>>> 1f2a52ecf0159046cd2db518ab0f121bea39cd72
   return (
-    <div className={darkMode ? 'dark' : ''}>
-      <div className="fixed inset-0 z-[-2] pointer-events-none perspective-container">
-        <div className={`grid-floor ${introPlaying ? 'hyper-grid-floor' : ''}`}></div>
-        <div className={`grid-ceiling ${introPlaying ? 'hyper-grid-ceiling' : ''}`}></div>
-      </div>
-      <div className="min-h-screen bg-transparent text-slate-100 relative z-0">
-        <div className="tunnel-vignette"></div>
-        <div className={`speed-lines ${introPlaying ? 'hyper-speed-lines' : ''}`}></div>
-
-        {introPlaying && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6 bg-black/60 backdrop-blur-sm transition-opacity duration-1000">
-             <div className="w-24 h-24 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin" style={{boxShadow: '0 0 30px rgba(6, 182, 212, 0.5)'}} />
-             <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 tracking-[0.3em] animate-pulse">
-               SYSTEM BOOTING
-             </h2>
-             <p className="text-cyan-400 tracking-widest text-sm md:text-base animate-pulse">
-               ESTABLISHING NEURAL LINK TO GRID...
-             </p>
-          </div>
-        )}
-
-        <div className={`transition-all duration-1000 ease-out origin-center ${introPlaying ? 'opacity-0 scale-90 blur-md pointer-events-none' : 'opacity-100 scale-100 blur-0'}`}>
-        {/* Header */}
-        <header className="sticky top-0 z-50 border-b border-cyan-500/30 bg-black/40 backdrop-blur-md">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-lg shadow-emerald-500/30">
-                <Zap className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold gradient-text leading-tight">
-                  Intelligent Energy Grid Balancer
-                </h1>
-                <p className="text-xs text-slate-500 hidden sm:block">
-                  Real-time renewable energy management
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Connection status */}
-              <div
-                className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${
-                  isConnected
-                    ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
-                    : 'text-red-400 border-red-500/30 bg-red-500/10'
-                }`}
-              >
-                {isConnected ? (
-                  <Wifi className="w-3 h-3" />
-                ) : (
-                  <WifiOff className="w-3 h-3" />
-                )}
-                {isConnected ? 'Live' : 'Reconnecting…'}
-              </div>
-
-              {/* Last updated */}
-              {lastUpdated && (
-                <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500">
-                  <RefreshCw className="w-3 h-3" />
-                  {lastUpdated.toLocaleTimeString()}
-                </div>
-              )}
-
-              {/* Dark mode toggle */}
-              <button
-                onClick={() => setDarkMode((d) => !d)}
-                className="p-2 rounded-lg border border-slate-700 hover:border-slate-500 bg-slate-800 hover:bg-slate-700 transition-all"
-                aria-label="Toggle dark mode"
-              >
-                {darkMode ? (
-                  <Sun className="w-4 h-4 text-yellow-400" />
-                ) : (
-                  <Moon className="w-4 h-4 text-slate-300" />
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Main content */}
-        <main className={`max-w-[1600px] mx-auto px-4 sm:px-6 py-6 transition-all duration-1000 ${!isConnected && !isLoading ? 'grayscale opacity-75' : ''}`}>
-          <div className="glass-card p-4 mb-6">
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3">Scenario Simulation</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label className="text-xs text-slate-300">
-                Demand Multiplier: {scenario.demandMultiplier.toFixed(2)}x
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.05"
-                  value={scenario.demandMultiplier}
-                  onChange={(e) => setScenario((s) => ({ ...s, demandMultiplier: Number(e.target.value) }))}
-                  className="w-full mt-2"
-                />
-              </label>
-              <label className="text-xs text-slate-300">
-                Solar Multiplier: {scenario.solarMultiplier.toFixed(2)}x
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={scenario.solarMultiplier}
-                  onChange={(e) => setScenario((s) => ({ ...s, solarMultiplier: Number(e.target.value) }))}
-                  className="w-full mt-2"
-                />
-              </label>
-              <label className="text-xs text-slate-300">
-                Wind Multiplier: {scenario.windMultiplier.toFixed(2)}x
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={scenario.windMultiplier}
-                  onChange={(e) => setScenario((s) => ({ ...s, windMultiplier: Number(e.target.value) }))}
-                  className="w-full mt-2"
-                />
-              </label>
-            </div>
-          </div>
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-96 gap-4">
-              <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
-              <p className="text-slate-400 animate-pulse">Connecting to energy grid…</p>
-            </div>
-          ) : (
-            <Dashboard
-              gridData={gridData}
-              alerts={alerts}
-              onDismissAlert={dismissAlert}
-            />
-          )}
-        </main>
-        </div>
-      </div>
-    </div>
+    <Routes>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/strategy" element={<StrategyPage />} />
+    </Routes>
   );
 }

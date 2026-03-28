@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'https://intelligent-energy-grid-balancer-fdxg.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL?.trim()?.replace(/\/+$/, '') || '/api';
 
 async function request(path, options = {}) {
   try {
@@ -30,3 +30,13 @@ export const getBatteryStatus = () => request('/battery/status');
 
 export const resetBattery = () =>
   request('/simulate/reset-state', { method: 'POST' });
+
+export const simulateScenario = ({ demandMultiplier, loadSheddingPercent, hour }) =>
+  request('/simulate-scenario', {
+    method: 'POST',
+    body: JSON.stringify({
+      demandMultiplier,
+      loadSheddingPercent,
+      hour,
+    }),
+  });
