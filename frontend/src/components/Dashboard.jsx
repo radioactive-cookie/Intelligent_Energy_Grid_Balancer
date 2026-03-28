@@ -45,6 +45,16 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
     DEFICIT: 'text-orange-400',
     CRITICAL: 'text-red-400',
   }[gridStatus] || 'text-slate-400';
+  const dataSource = energy.dataSource ?? 'simulated';
+  const carbonIntensity = grid.carbonIntensity;
+  const carbonLevel =
+    carbonIntensity == null
+      ? 'unknown'
+      : carbonIntensity < 150
+      ? 'low'
+      : carbonIntensity < 400
+      ? 'medium'
+      : 'high';
 
   return (
     <div className="space-y-6 animate-[fadeIn_0.4s_ease-out]">
@@ -88,6 +98,45 @@ export default function Dashboard({ gridData, alerts, onDismissAlert }) {
           color="bg-slate-700/50 text-slate-300"
           sublabel={`Efficiency: ${(grid.efficiency ?? 0).toFixed(1)}%`}
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="glass-card p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">Data Source</p>
+            <p className="text-sm text-slate-200 mt-1">Weather + generation feed</p>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+              dataSource === 'real'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+            }`}
+          >
+            {dataSource}
+          </span>
+        </div>
+        <div className="glass-card p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase tracking-wider">Carbon Intensity</p>
+            <p className="text-lg font-bold text-white mt-1">
+              {carbonIntensity == null ? '—' : `${Number(carbonIntensity).toFixed(0)} gCO2/kWh`}
+            </p>
+          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+              carbonLevel === 'low'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                : carbonLevel === 'medium'
+                ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                : carbonLevel === 'high'
+                ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+                : 'bg-slate-500/20 text-slate-300 border border-slate-500/40'
+            }`}
+          >
+            {carbonLevel}
+          </span>
+        </div>
       </div>
 
       {/* Charts row */}

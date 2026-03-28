@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request(path, options = {}) {
   try {
@@ -24,7 +24,7 @@ export const predictDemand = (hours = 24) =>
 
 export const balanceGrid = () => request('/balance/run', { method: 'POST' });
 
-export const getGridStatus = () => request('/grid/status');
+export const getGridStatus = () => request('/metrics');
 
 export const getBatteryStatus = () => request('/battery/status');
 

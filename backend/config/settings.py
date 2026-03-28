@@ -43,6 +43,19 @@ class Settings(BaseSettings):
     
     # Monitoring
     monitoring_interval_seconds: int = 5
+
+    # Real weather integration (Open-Meteo)
+    weather_latitude: float = float(os.getenv("WEATHER_LATITUDE", "28.6139"))
+    weather_longitude: float = float(os.getenv("WEATHER_LONGITUDE", "77.2090"))
+    solar_peak_capacity_kw: float = float(os.getenv("SOLAR_PEAK_CAPACITY_KW", "500"))
+    wind_peak_capacity_kw: float = float(os.getenv("WIND_PEAK_CAPACITY_KW", "300"))
+    wind_cut_in_speed_ms: float = float(os.getenv("WIND_CUT_IN_SPEED_MS", "3"))
+    wind_rated_speed_ms: float = float(os.getenv("WIND_RATED_SPEED_MS", "12"))
+
+    # Carbon intensity integration (Electricity Maps)
+    electricity_maps_token: str = os.getenv("ELECTRICITY_MAPS_TOKEN", "")
+    electricity_maps_zone: str = os.getenv("ELECTRICITY_MAPS_ZONE", "IN")
+    carbon_intensity_fallback: float = float(os.getenv("CARBON_INTENSITY_FALLBACK", "450"))
     
     class Config:
         env_file = ".env"

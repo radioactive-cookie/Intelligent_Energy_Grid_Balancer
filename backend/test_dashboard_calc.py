@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, '.')
 
 from services.dashboard_calculator import DashboardCalculator, DashboardInputs, SimulationState
+from controllers import MetricsController
 
 def test_calculations():
     """Test the dashboard calculations with known values"""
@@ -122,5 +123,29 @@ def test_calculations():
     print("  ✓ Battery percent = (current / capacity) * 100")
     print("\n")
 
+
+def test_metrics_schema_extensions():
+    """Validate enhanced metrics schema fields used by API/WebSocket and frontend."""
+    metrics = MetricsController.get_system_metrics()
+    required = [
+        "total_supply",
+        "total_demand",
+        "battery_level",
+        "grid_status",
+        "houses",
+        "alerts",
+        "sources",
+        "dataSource",
+        "rawWeather",
+        "carbonIntensity",
+    ]
+    for key in required:
+        assert key in metrics, f"Missing key: {key}"
+    assert "solar" in metrics["sources"]
+    assert "wind" in metrics["sources"]
+    assert metrics["dataSource"] in ("real", "simulated")
+    print("✓ Metrics schema includes data source, weather, and carbon fields")
+
 if __name__ == "__main__":
     test_calculations()
+    test_metrics_schema_extensions()
