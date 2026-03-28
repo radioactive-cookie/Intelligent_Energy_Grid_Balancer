@@ -1,21 +1,112 @@
 """Main FastAPI Application"""
+from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import asyncio
-import json
 import os
 import logging
+import random
 from datetime import datetime
 from contextlib import asynccontextmanager
 
 from config import get_settings
 from routes import router
 from utils import setup_logging, get_logger
-from controllers import GridController, MetricsController, AlertController
+from controllers import GridController, AlertController
+from services import simulation_state, simulation_engine
 
 logger = None
 settings = None
+DEMAND_NOISE_OFFSET_KW = 30
+DEMAND_NOISE_SPAN_KW = DEMAND_NOISE_OFFSET_KW * 2
+# MW delta threshold used to raise SURPLUS/DEFICIT alerts when imbalance is material.
+IMBALANCE_THRESHOLD = float(os.getenv("IMBALANCE_THRESHOLD", "20"))
+MAX_HISTORY = 20
+gridHistory = []
+
+
+def _get_pattern_for_hour(hour: int) -> str:
+    if 6 <= hour < 9:
+        return "morning-rush"
+    if 9 <= hour < 17:
+        return "midday"
+    if 17 <= hour < 21:
+        return "evening-peak"
+    if 21 <= hour < 24:
+        return "night"
+    return "off-peak"
+
+
+def computeGridSnapshot(hour: Optional[int] = None) -> dict:
+    now = datetime.utcnow()
+    snapshot_hour = now.hour if hour is None else hour
+
+    dashboard = simulation_state.get_dashboard()
+    solar = round(float(dashboard.get("solar_generation", dashboard.get("solar_mw", 0.0))), 1)
+    wind = round(float(dashboard.get("wind_generation", dashboard.get("wind_mw", 0.0))), 1)
+    supply = round(float(dashboard.get("total_generation", solar + wind)), 1)
+    predicted = round(float(dashboard.get("demand", dashboard.get("demand_mw", 0.0))), 1)
+    actual = round(
+        predicted + (random.random() * DEMAND_NOISE_SPAN_KW - DEMAND_NOISE_OFFSET_KW), 1
+    )
+    delta = round(supply - actual, 1)
+
+    denominator = max(supply, actual)
+    if denominator == 0:
+        efficiency = 100.0
+    else:
+        efficiency = round((min(supply, actual) / denominator * 100), 1)
+
+    battery_level = round(float(simulation_engine.config.battery_current), 1)
+    battery_capacity = round(float(simulation_engine.config.battery_capacity), 1)
+    battery_percentage = round(
+        (battery_level / battery_capacity * 100) if battery_capacity > 0 else 0.0, 1
+    )
+    is_charging = delta > 0 and battery_level < battery_capacity
+    is_draining = delta < 0 and battery_level > 0
+    charging_rate = round(abs(delta) if (is_charging or is_draining) else 0.0, 1)
+
+    alerts = []
+    if delta > IMBALANCE_THRESHOLD:
+        alerts.append("SURPLUS")
+    if delta < -IMBALANCE_THRESHOLD:
+        alerts.append("DEFICIT")
+    if battery_percentage < 10:
+        alerts.append("BATTERY_CRITICAL")
+
+    action = "storing" if is_charging else "releasing" if is_draining else "idle"
+
+    return {
+        "energy": {
+            "solar": solar,
+            "wind": wind,
+            "total": supply,
+            "hour": snapshot_hour,
+        },
+        "demand": {
+            "predicted": predicted,
+            "actual": actual,
+            "pattern": _get_pattern_for_hour(snapshot_hour),
+            "hour": snapshot_hour,
+        },
+        "battery": {
+            "level": battery_level,
+            "percentage": battery_percentage,
+            "capacity": battery_capacity,
+            "isCharging": is_charging,
+            "isDraining": is_draining,
+            "chargingRate": charging_rate,
+        },
+        "grid": {
+            "action": action,
+            "gridStatus": "SURPLUS" if delta >= 0 else "DEFICIT",
+            "efficiency": efficiency,
+            "delta": delta,
+            "alerts": alerts,
+        },
+        "timestamp": now.isoformat(),
+    }
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -73,12 +164,16 @@ async def monitor_and_broadcast():
     global logger
     try:
         while True:
+            snapshot = computeGridSnapshot()
+            gridHistory.append(snapshot)
+            if len(gridHistory) > MAX_HISTORY:
+                gridHistory.pop(0)
+
             if manager.active_connections:
                 try:
-                    metrics = MetricsController.get_system_metrics()
                     await manager.broadcast({
-                        "type": "metrics_update",
-                        "data": metrics
+                        "type": "GRID_UPDATE",
+                        "data": snapshot
                     })
                 except Exception as e:
                     logger.error(f"Error in broadcast: {e}")
@@ -173,6 +268,66 @@ async def websocket_grid_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
+
+# ============================================
+# Frontend Compatibility API
+# ============================================
+
+@app.get("/api/history")
+async def get_api_history():
+    return {"history": gridHistory, "count": len(gridHistory)}
+
+
+@app.get("/api/predict-demand")
+async def get_api_predict_demand(hour: Optional[int] = None):
+    snapshot = computeGridSnapshot(hour)
+    return {
+        "predicted": snapshot["demand"]["predicted"],
+        "actual": snapshot["demand"]["actual"],
+        "pattern": snapshot["demand"]["pattern"],
+        "hour": snapshot["demand"]["hour"],
+        "timestamp": snapshot["timestamp"],
+    }
+
+
+@app.get("/api/battery-status")
+async def get_api_battery_status(hour: Optional[int] = None):
+    snapshot = computeGridSnapshot(hour)
+    return {
+        **snapshot["battery"],
+        "timestamp": snapshot["timestamp"],
+    }
+
+
+@app.get("/api/balance-grid")
+async def get_api_balance_grid(hour: Optional[int] = None):
+    snapshot = computeGridSnapshot(hour)
+    demand_value = snapshot["demand"]["actual"]
+    supply_value = snapshot["energy"]["total"]
+    delta = snapshot["grid"]["delta"]
+    return {
+        "action": snapshot["grid"]["action"],
+        "surplus": round(max(delta, 0), 1),
+        "deficit": round(max(-delta, 0), 1),
+        "batteryUsed": snapshot["battery"]["chargingRate"],
+        "gridStatus": snapshot["grid"]["gridStatus"],
+        "efficiency": snapshot["grid"]["efficiency"],
+        "supply": supply_value,
+        "demand": snapshot["demand"],
+        "demandValue": demand_value,
+        "delta": delta,
+        "hour": snapshot["demand"]["hour"],
+        "timestamp": snapshot["timestamp"],
+        "alerts": snapshot["grid"]["alerts"],
+        "battery": snapshot["battery"],
+        "energy": snapshot["energy"],
+    }
+
+
+@app.post("/api/balance-grid")
+async def post_api_balance_grid(hour: Optional[int] = None):
+    return await get_api_balance_grid(hour)
+
 
 # ============================================
 # DOCUMENTATION

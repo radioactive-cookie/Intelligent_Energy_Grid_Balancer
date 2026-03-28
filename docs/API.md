@@ -72,14 +72,14 @@ Returns the current grid balance status using live simulated data.
   "gridStatus": "SURPLUS",
   "efficiency": 95.7,
   "supply": 621.7,
-  "demand": 536.4,
+  "demandValue": 536.4,
   "delta": 85.3,
   "hour": 14,
   "timestamp": "2024-07-01T14:00:00.000Z",
-  "alerts": [],
+  "alerts": ["SURPLUS"],
   "battery": { "level": 685.3, "percentage": 68.5, "capacity": 1000, "isCharging": true, "isDraining": false, "chargingRate": 85.3 },
   "energy": { "solar": 423.5, "wind": 198.2, "total": 621.7 },
-  "demand": 536.4
+  "demand": { "predicted": 540.0, "actual": 536.4, "pattern": "midday", "hour": 14 }
 }
 ```
 
@@ -116,6 +116,30 @@ Returns the current battery state.
   "isCharging": true,
   "isDraining": false,
   "timestamp": "2024-07-01T14:00:00.000Z"
+}
+```
+
+---
+
+## History
+
+### `GET /api/history`
+
+Returns the rolling snapshot history (up to 20 latest records).
+
+**Response 200**
+```json
+{
+  "history": [
+    {
+      "energy": { "solar": 423.5, "wind": 198.2, "total": 621.7, "hour": 14 },
+      "demand": { "predicted": 720.0, "actual": 735.4, "pattern": "midday", "hour": 14 },
+      "battery": { "level": 685.3, "percentage": 68.5, "capacity": 1000, "isCharging": true, "isDraining": false, "chargingRate": 85.3 },
+      "grid": { "action": "storing", "gridStatus": "SURPLUS", "efficiency": 95.7, "delta": 85.3, "alerts": ["SURPLUS"] },
+      "timestamp": "2024-07-01T14:00:00.000Z"
+    }
+  ],
+  "count": 1
 }
 ```
 
@@ -159,8 +183,8 @@ The server broadcasts a `GRID_UPDATE` message every 5 seconds:
   "data": {
     "energy": { "solar": 423.5, "wind": 198.2, "total": 621.7, "hour": 14 },
     "demand": { "predicted": 720.0, "actual": 735.4, "pattern": "midday", "hour": 14 },
-    "battery": { "level": 685.3, "percentage": 68.5, "capacity": 1000, "isCharging": true },
-    "grid": { "action": "storing", "gridStatus": "SURPLUS", "efficiency": 95.7, "delta": 85.3 },
+    "battery": { "level": 685.3, "percentage": 68.5, "capacity": 1000, "isCharging": true, "isDraining": false, "chargingRate": 85.3 },
+    "grid": { "action": "storing", "gridStatus": "SURPLUS", "efficiency": 95.7, "delta": 85.3, "alerts": ["SURPLUS"] },
     "timestamp": "2024-07-01T14:00:00.000Z"
   }
 }
