@@ -315,6 +315,30 @@ SMTP_PASSWORD=your-app-password
 ALERT_EMAIL=operations@example.com
 ```
 
+### Render dashboard variables (backend)
+
+The backend reads configuration through `os.getenv(...)` and `pydantic-settings` in `backend/config/settings.py`.
+
+- `ELECTRICITY_MAPS_TOKEN` (**optional API key**) – enables live carbon-intensity lookup.
+- `ELECTRICITY_MAPS_ZONE` (optional, default `IN`) – zone used with Electricity Maps.
+- `WEATHER_LATITUDE` / `WEATHER_LONGITUDE` (optional) – location for Open-Meteo weather fetch.
+- `FRONTEND_URL` (recommended) – CORS allow-list origin for your deployed frontend.
+- `IMBALANCE_THRESHOLD`, `MAX_BASE_LOAD`, `MAX_SOLAR_OUTPUT`, `MAX_WIND_OUTPUT` (optional tuning values).
+
+Notes:
+- `services/weather_service.py` uses Open-Meteo and does **not** require an API key.
+- If `ELECTRICITY_MAPS_TOKEN` is missing, `services/carbon_service.py` uses fallback intensity values.
+
+### Render start command
+
+The FastAPI app entry point is `app` in `backend/main.py`, so the start command must target `main:app`.
+
+When Render service root directory is set to `backend`, use:
+
+```bash
+python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
+```
+
 ---
 
 ## Database Migration
