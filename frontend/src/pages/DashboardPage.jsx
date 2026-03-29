@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Zap, Moon, Sun, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getGridStatus } from '../services/api';
@@ -36,7 +36,6 @@ export default function DashboardPage() {
     solarMultiplier: 1,
     windMultiplier: 1,
   });
-  const alertIdCounterRef = useRef(0);
 
   useEffect(() => {
     if (!introPlaying) {
@@ -124,22 +123,22 @@ export default function DashboardPage() {
         || wsData.grid?.alerts;
       if (alertsList?.length > 0) {
         setAlerts((prev) => {
-          const nextId = () => `${Date.now()}-${++alertIdCounterRef.current}`;
           const prevByType = new Set(prev.map((a) => normalizeAlertType(a)));
-
-          const incoming = alertsList
+          const normalizedIncoming = alertsList
             .filter((a) => typeof a === 'object' && a !== null)
             .map((a) => ({
               ...a,
-              id: a.id || `${a.type || a.severity || 'alert'}-${nextId()}`,
+              id: a.id || (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
               type: normalizeAlertType(a),
               severity: normalizeAlertSeverity(a),
-            }))
-            .filter((a) => {
-              if (prevByType.has(a.type)) return false;
-              prevByType.add(a.type);
-              return true;
-            });
+            }));
+
+          const incoming = [];
+          for (const alert of normalizedIncoming) {
+            if (prevByType.has(alert.type)) continue;
+            prevByType.add(alert.type);
+            incoming.push(alert);
+          }
 
           const merged = [...incoming, ...prev].slice(0, 20);
           return merged;

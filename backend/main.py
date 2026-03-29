@@ -12,6 +12,7 @@ import logging
 import random
 import math
 import time
+import threading
 import uuid
 import traceback
 from datetime import datetime
@@ -48,6 +49,7 @@ monitoring_service_instance = GridMonitoringService()
 _ALERT_TYPES = ("surplus", "deficit", "battery-critical")
 alertCooldowns = {alert_type: 0 for alert_type in _ALERT_TYPES}
 lastAlertConditions = {alert_type: False for alert_type in _ALERT_TYPES}
+alert_state_lock = threading.Lock()
 
 
 class ScenarioSimulationRequest(BaseModel):
@@ -201,21 +203,21 @@ def build_alert_events(snapshot: dict) -> list[dict]:
 
     events = []
     now_iso = datetime.utcnow().isoformat() + "Z"
-    now_ms = int(time.time() * 1000)
-
     def _should_emit(alert_type: str, condition: bool) -> bool:
-        if not condition:
-            lastAlertConditions[alert_type] = False
+        with alert_state_lock:
+            now_ms = time.time_ns() // 1_000_000
+            if not condition:
+                lastAlertConditions[alert_type] = False
+                return False
+
+            just_became_true = not lastAlertConditions[alert_type]
+            cooldown_elapsed = (now_ms - alertCooldowns[alert_type]) >= ALERT_COOLDOWN_MS
+            lastAlertConditions[alert_type] = True
+
+            if just_became_true or cooldown_elapsed:
+                alertCooldowns[alert_type] = now_ms
+                return True
             return False
-
-        just_became_true = not lastAlertConditions[alert_type]
-        cooldown_elapsed = (now_ms - alertCooldowns[alert_type]) >= ALERT_COOLDOWN_MS
-        lastAlertConditions[alert_type] = True
-
-        if just_became_true or cooldown_elapsed:
-            alertCooldowns[alert_type] = now_ms
-            return True
-        return False
 
     deficit_condition = (
         demand > supply

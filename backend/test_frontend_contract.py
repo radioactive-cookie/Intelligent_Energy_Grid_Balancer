@@ -306,7 +306,7 @@ def test_build_alert_events_emits_non_peak_large_imbalance_alert():
 
 def test_build_alert_events_deduplicates_until_cooldown(monkeypatch):
     _reset_alert_dedup_state()
-    monkeypatch.setattr(app_main.time, "time", lambda: 100.0)
+    monkeypatch.setattr(app_main.time, "time_ns", lambda: 100_000_000_000)
 
     snapshot = {
         "total_supply": 100.0,
@@ -323,8 +323,8 @@ def test_build_alert_events_deduplicates_until_cooldown(monkeypatch):
 
     monkeypatch.setattr(
         app_main.time,
-        "time",
-        lambda: 100.0 + (app_main.ALERT_COOLDOWN_MS / 1000) + 1,
+        "time_ns",
+        lambda: 100_000_000_000 + ((app_main.ALERT_COOLDOWN_MS + 1_000) * 1_000_000),
     )
     third = app_main.build_alert_events(snapshot)
     assert any(event["type"] == "deficit" for event in third)
@@ -332,7 +332,7 @@ def test_build_alert_events_deduplicates_until_cooldown(monkeypatch):
 
 def test_build_alert_events_resets_when_condition_clears(monkeypatch):
     _reset_alert_dedup_state()
-    monkeypatch.setattr(app_main.time, "time", lambda: 200.0)
+    monkeypatch.setattr(app_main.time, "time_ns", lambda: 200_000_000_000)
 
     deficit_snapshot = {
         "total_supply": 100.0,
