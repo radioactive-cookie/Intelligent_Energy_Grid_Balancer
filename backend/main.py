@@ -11,6 +11,8 @@ import os
 import logging
 import random
 import math
+import time
+import threading
 import uuid
 import traceback
 from datetime import datetime
@@ -42,7 +44,12 @@ MAX_SOLAR_OUTPUT = float(os.getenv("MAX_SOLAR_OUTPUT", "500"))
 MAX_WIND_OUTPUT = float(os.getenv("MAX_WIND_OUTPUT", "300"))
 HOUSES_PLACEHOLDER_COUNT = 0
 BATTERY_CRITICAL_ALERT_THRESHOLD = 15.0
+ALERT_COOLDOWN_MS = int(os.getenv("ALERT_COOLDOWN_MS", "60000"))
 monitoring_service_instance = GridMonitoringService()
+_ALERT_TYPES = ("surplus", "deficit", "battery-critical")
+alertCooldowns = {alert_type: 0 for alert_type in _ALERT_TYPES}
+lastAlertConditions = {alert_type: False for alert_type in _ALERT_TYPES}
+alert_state_lock = threading.Lock()
 
 
 class ScenarioSimulationRequest(BaseModel):
@@ -196,17 +203,33 @@ def build_alert_events(snapshot: dict) -> list[dict]:
 
     events = []
     now_iso = datetime.utcnow().isoformat() + "Z"
+    def _should_emit(alert_type: str, condition: bool) -> bool:
+        with alert_state_lock:
+            now_ms = time.time_ns() // 1_000_000
+            if not condition:
+                lastAlertConditions[alert_type] = False
+                return False
 
-    if (
+            just_became_true = not lastAlertConditions[alert_type]
+            cooldown_elapsed = (now_ms - alertCooldowns[alert_type]) >= ALERT_COOLDOWN_MS
+            lastAlertConditions[alert_type] = True
+
+            if just_became_true or cooldown_elapsed:
+                alertCooldowns[alert_type] = now_ms
+                return True
+            return False
+
+    deficit_condition = (
         demand > supply
         and imbalance_pct > IMBALANCE_THRESHOLD
         and (is_peak_hour or imbalance_pct > 30)
-    ):
+    )
+    if _should_emit("deficit", deficit_condition):
         severity = "critical" if imbalance_pct > 40 else "warning"
         events.append(
             {
-                "id": f"peak-demand-{uuid.uuid4()}",
-                "type": "critical" if severity == "critical" else "warning",
+                "id": f"deficit-{uuid.uuid4()}",
+                "type": "deficit",
                 "severity": severity,
                 "message": (
                     f"⚡ Peak demand alert: Grid deficit of {imbalance_pct:.1f}%. "
@@ -217,11 +240,28 @@ def build_alert_events(snapshot: dict) -> list[dict]:
             }
         )
 
-    if battery_level < BATTERY_CRITICAL_ALERT_THRESHOLD:
+    surplus_condition = supply > demand and imbalance_pct > IMBALANCE_THRESHOLD
+    if _should_emit("surplus", surplus_condition):
+        severity = "critical" if imbalance_pct > 40 else "warning"
         events.append(
             {
-                "id": f"battery-low-{uuid.uuid4()}",
-                "type": "critical",
+                "id": f"surplus-{uuid.uuid4()}",
+                "type": "surplus",
+                "severity": severity,
+                "message": (
+                    f"⚡ Surplus alert: Generation exceeds demand by {imbalance_pct:.1f}%. "
+                    "Excess power being redirected to storage."
+                ),
+                "timestamp": now_iso,
+            }
+        )
+
+    battery_critical_condition = battery_level < BATTERY_CRITICAL_ALERT_THRESHOLD
+    if _should_emit("battery-critical", battery_critical_condition):
+        events.append(
+            {
+                "id": f"battery-critical-{uuid.uuid4()}",
+                "type": "battery-critical",
                 "severity": "critical",
                 "message": (
                     f"🔋 Battery critically low ({battery_level:.1f}%). "

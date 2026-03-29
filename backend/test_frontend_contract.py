@@ -8,6 +8,15 @@ import main as app_main
 NOISE_OFFSET = app_main.DEMAND_NOISE_OFFSET_KW
 
 
+def _reset_alert_dedup_state():
+    app_main.lastAlertConditions.update(
+        {"surplus": False, "deficit": False, "battery-critical": False}
+    )
+    app_main.alertCooldowns.update(
+        {"surplus": 0, "deficit": 0, "battery-critical": 0}
+    )
+
+
 def _assert_snapshot_shape(snapshot: dict):
     assert "energy" in snapshot
     assert "demand" in snapshot
@@ -264,6 +273,7 @@ def test_api_alerts_endpoint_and_event_schema():
 
 
 def test_build_alert_events_emits_peak_and_battery_alerts():
+    _reset_alert_dedup_state()
     snapshot = {
         "total_supply": 200.0,
         "total_demand": 500.0,
@@ -273,8 +283,8 @@ def test_build_alert_events_emits_peak_and_battery_alerts():
     events = app_main.build_alert_events(snapshot)
     assert len(events) >= 2
     types = {event["type"] for event in events}
-    assert "warning" in types or "critical" in types
-    assert "critical" in types
+    assert "deficit" in types
+    assert "battery-critical" in types
     for event in events:
         assert "id" in event
         assert "severity" in event
@@ -283,6 +293,7 @@ def test_build_alert_events_emits_peak_and_battery_alerts():
 
 
 def test_build_alert_events_emits_non_peak_large_imbalance_alert():
+    _reset_alert_dedup_state()
     snapshot = {
         "total_supply": 100.0,
         "total_demand": 180.0,
@@ -290,7 +301,60 @@ def test_build_alert_events_emits_non_peak_large_imbalance_alert():
         "demand": {"hour": 3},
     }
     events = app_main.build_alert_events(snapshot)
-    assert any(event["id"].startswith("peak-demand-") for event in events)
+    assert any(event["id"].startswith("deficit-") for event in events)
+
+
+def test_build_alert_events_deduplicates_until_cooldown(monkeypatch):
+    _reset_alert_dedup_state()
+    monkeypatch.setattr(app_main.time, "time_ns", lambda: 100_000_000_000)
+
+    snapshot = {
+        "total_supply": 100.0,
+        "total_demand": 200.0,
+        "battery_level": 50.0,
+        "demand": {"hour": 12},
+    }
+
+    first = app_main.build_alert_events(snapshot)
+    assert any(event["type"] == "deficit" for event in first)
+
+    second = app_main.build_alert_events(snapshot)
+    assert not any(event["type"] == "deficit" for event in second)
+
+    monkeypatch.setattr(
+        app_main.time,
+        "time_ns",
+        lambda: 100_000_000_000 + ((app_main.ALERT_COOLDOWN_MS + 1_000) * 1_000_000),
+    )
+    third = app_main.build_alert_events(snapshot)
+    assert any(event["type"] == "deficit" for event in third)
+
+
+def test_build_alert_events_resets_when_condition_clears(monkeypatch):
+    _reset_alert_dedup_state()
+    monkeypatch.setattr(app_main.time, "time_ns", lambda: 200_000_000_000)
+
+    deficit_snapshot = {
+        "total_supply": 100.0,
+        "total_demand": 200.0,
+        "battery_level": 50.0,
+        "demand": {"hour": 12},
+    }
+    balanced_snapshot = {
+        "total_supply": 200.0,
+        "total_demand": 200.0,
+        "battery_level": 50.0,
+        "demand": {"hour": 12},
+    }
+
+    first = app_main.build_alert_events(deficit_snapshot)
+    assert any(event["type"] == "deficit" for event in first)
+
+    cleared = app_main.build_alert_events(balanced_snapshot)
+    assert not any(event["type"] == "deficit" for event in cleared)
+
+    immediate_retrigger = app_main.build_alert_events(deficit_snapshot)
+    assert any(event["type"] == "deficit" for event in immediate_retrigger)
 
 
 def test_monitor_and_broadcast_always_sends_alert_events_key_and_maps_rich_alerts(monkeypatch):

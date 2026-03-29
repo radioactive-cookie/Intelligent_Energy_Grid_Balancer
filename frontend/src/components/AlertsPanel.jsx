@@ -63,7 +63,10 @@ function AlertItem({ alert, onDismiss }) {
         <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">{alert.message}</p>
       </div>
       <button
-        onClick={() => onDismiss(alert.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss(alert.id);
+        }}
         className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0"
         aria-label="Dismiss alert"
       >

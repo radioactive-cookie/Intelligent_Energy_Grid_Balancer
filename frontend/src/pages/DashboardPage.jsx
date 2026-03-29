@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Zap, Moon, Sun, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { getGridStatus } from '../services/api';
@@ -12,8 +12,14 @@ function getGridStatusFromDelta(delta) {
 
 function normalizeAlertSeverity(alert) {
   if (alert?.severity) return alert.severity;
-  if (alert?.type === 'critical') return 'critical';
-  if (alert?.type === 'warning') return 'warning';
+  if (alert?.type === 'battery-critical' || alert?.type === 'critical') return 'critical';
+  if (alert?.type === 'surplus' || alert?.type === 'deficit' || alert?.type === 'warning') return 'warning';
+  return 'info';
+}
+
+function normalizeAlertType(alert) {
+  if (alert?.type) return alert.type;
+  if (alert?.severity === 'critical') return 'battery-critical';
   return 'info';
 }
 
@@ -30,7 +36,6 @@ export default function DashboardPage() {
     solarMultiplier: 1,
     windMultiplier: 1,
   });
-  const alertIdCounterRef = useRef(0);
 
   useEffect(() => {
     if (!introPlaying) {
@@ -118,14 +123,23 @@ export default function DashboardPage() {
         || wsData.grid?.alerts;
       if (alertsList?.length > 0) {
         setAlerts((prev) => {
-          const incoming = alertsList
+          const prevByType = new Set(prev.map((a) => normalizeAlertType(a)));
+          const normalizedIncoming = alertsList
             .filter((a) => typeof a === 'object' && a !== null)
             .map((a) => ({
               ...a,
-              id: a.id || `${a.type || a.severity || 'alert'}-${Date.now()}-${++alertIdCounterRef.current}`,
-              type: a.type || 'info',
+              id: a.id || (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`),
+              type: normalizeAlertType(a),
               severity: normalizeAlertSeverity(a),
             }));
+
+          const incoming = [];
+          for (const alert of normalizedIncoming) {
+            if (prevByType.has(alert.type)) continue;
+            prevByType.add(alert.type);
+            incoming.push(alert);
+          }
+
           const merged = [...incoming, ...prev].slice(0, 20);
           return merged;
         });
