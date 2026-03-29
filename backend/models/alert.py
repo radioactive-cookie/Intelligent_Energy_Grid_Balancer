@@ -6,7 +6,7 @@ from typing import Literal, Optional
 class Alert(BaseModel):
     """Model for system alerts"""
     alert_id: str = Field(..., description="Unique identifier for alert")
-    type: Literal["frequency_deviation", "battery_low", "frequency_critical", "demand_spike", "generation_drop", "imbalance"] = Field(..., description="Type of alert")
+    type: Literal["frequency_deviation", "battery_low", "frequency_critical", "demand_spike", "generation_drop", "imbalance", "household_response"] = Field(..., description="Type of alert")
     message: str = Field(..., description="Alert message")
     severity: Literal["low", "medium", "high", "critical"] = Field(..., description="Alert severity level")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
