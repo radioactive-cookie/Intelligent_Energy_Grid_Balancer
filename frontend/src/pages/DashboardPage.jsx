@@ -12,8 +12,14 @@ function getGridStatusFromDelta(delta) {
 
 function normalizeAlertSeverity(alert) {
   if (alert?.severity) return alert.severity;
-  if (alert?.type === 'critical') return 'critical';
-  if (alert?.type === 'warning') return 'warning';
+  if (alert?.type === 'battery-critical' || alert?.type === 'critical') return 'critical';
+  if (alert?.type === 'surplus' || alert?.type === 'deficit' || alert?.type === 'warning') return 'warning';
+  return 'info';
+}
+
+function normalizeAlertType(alert) {
+  if (alert?.type) return alert.type;
+  if (alert?.severity === 'critical') return 'battery-critical';
   return 'info';
 }
 
@@ -118,14 +124,23 @@ export default function DashboardPage() {
         || wsData.grid?.alerts;
       if (alertsList?.length > 0) {
         setAlerts((prev) => {
+          const nextId = () => `${Date.now()}-${++alertIdCounterRef.current}`;
+          const prevByType = new Set(prev.map((a) => normalizeAlertType(a)));
+
           const incoming = alertsList
             .filter((a) => typeof a === 'object' && a !== null)
             .map((a) => ({
               ...a,
-              id: a.id || `${a.type || a.severity || 'alert'}-${Date.now()}-${++alertIdCounterRef.current}`,
-              type: a.type || 'info',
+              id: a.id || `${a.type || a.severity || 'alert'}-${nextId()}`,
+              type: normalizeAlertType(a),
               severity: normalizeAlertSeverity(a),
-            }));
+            }))
+            .filter((a) => {
+              if (prevByType.has(a.type)) return false;
+              prevByType.add(a.type);
+              return true;
+            });
+
           const merged = [...incoming, ...prev].slice(0, 20);
           return merged;
         });
