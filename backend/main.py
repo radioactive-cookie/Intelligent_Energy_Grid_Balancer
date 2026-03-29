@@ -17,12 +17,15 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from config import get_settings
+from models.battery_storage import BatteryStorage
+from models.grid_state import GridState
 from routes import router
 from utils import setup_logging, get_logger
 from controllers import GridController, AlertController
 from services.weather_service import weather_service
 from services import simulation_state, simulation_engine, real_data_fetcher, carbon_service
 from services.ai_balancer_service import run_ai_balancer
+from services.monitoring_service import GridMonitoringService
 
 logger = None
 settings = None
@@ -39,6 +42,7 @@ MAX_SOLAR_OUTPUT = float(os.getenv("MAX_SOLAR_OUTPUT", "500"))
 MAX_WIND_OUTPUT = float(os.getenv("MAX_WIND_OUTPUT", "300"))
 HOUSES_PLACEHOLDER_COUNT = 0
 BATTERY_CRITICAL_ALERT_THRESHOLD = 15.0
+monitoring_service_instance = GridMonitoringService()
 
 
 class ScenarioSimulationRequest(BaseModel):
@@ -193,7 +197,11 @@ def build_alert_events(snapshot: dict) -> list[dict]:
     events = []
     now_iso = datetime.utcnow().isoformat() + "Z"
 
-    if is_peak_hour and demand > supply and imbalance_pct > IMBALANCE_THRESHOLD:
+    if (
+        demand > supply
+        and imbalance_pct > IMBALANCE_THRESHOLD
+        and (is_peak_hour or imbalance_pct > 30)
+    ):
         severity = "critical" if imbalance_pct > 40 else "warning"
         events.append(
             {
@@ -286,6 +294,76 @@ async def monitor_and_broadcast():
             if len(gridHistory) > MAX_HISTORY:
                 gridHistory.pop(0)
             alert_events = build_alert_events(snapshot)
+            grid_state_obj = GridState(
+                grid_id="MAIN_GRID_01",
+                frequency=snapshot.get("grid", {}).get("frequency", 50.0),
+                imbalance=snapshot.get("grid", {}).get("delta", 0.0),
+                total_generation=snapshot.get("total_supply", 0.0),
+                total_demand=snapshot.get("total_demand", 0.0),
+                load_percentage=min(
+                    (
+                        (snapshot.get("total_demand", 0.0) / snapshot.get("total_supply", 0.0)) * 100
+                        if snapshot.get("total_supply", 0.0) > 0
+                        else 0.0
+                    ),
+                    100.0,
+                ),
+                renewable_percentage=min(
+                    (
+                        (
+                            (
+                                float(snapshot.get("sources", {}).get("solar", 0.0))
+                                + float(snapshot.get("sources", {}).get("wind", 0.0))
+                            )
+                            / snapshot.get("total_supply", 0.0)
+                        )
+                        * 100
+                        if snapshot.get("total_supply", 0.0) > 0
+                        else 0.0
+                    ),
+                    100.0,
+                ),
+            )
+            battery_obj = BatteryStorage(
+                battery_id="BATT_01",
+                state_of_charge=snapshot.get("battery_level", 100.0),
+                capacity=snapshot.get("battery", {}).get("capacity", 1000.0),
+                current_level=snapshot.get("battery", {}).get("level", 0.0),
+                charge_rate=(
+                    snapshot.get("battery", {}).get("chargingRate", 0.0)
+                    if snapshot.get("battery", {}).get("isCharging", False)
+                    else 0.0
+                ),
+                discharge_rate=(
+                    snapshot.get("battery", {}).get("chargingRate", 0.0)
+                    if snapshot.get("battery", {}).get("isDraining", False)
+                    else 0.0
+                ),
+            )
+            rich_alerts = monitoring_service_instance.check_grid_health(
+                grid_state=grid_state_obj,
+                battery=battery_obj,
+                generation=snapshot.get("total_supply", 0.0),
+                demand=snapshot.get("total_demand", 0.0),
+            )
+            severity_map = {
+                "critical": "critical",
+                "high": "warning",
+                "medium": "warning",
+                "low": "info",
+            }
+            alert_events.extend(
+                [
+                    {
+                        "id": alert.alert_id,
+                        "type": severity_map.get(alert.severity, "info"),
+                        "severity": alert.severity,
+                        "message": alert.message,
+                        "timestamp": alert.timestamp.isoformat() + "Z",
+                    }
+                    for alert in rich_alerts
+                ]
+            )
             if alert_events:
                 alertHistory[:] = alert_events + alertHistory
                 if len(alertHistory) > MAX_ALERT_HISTORY:

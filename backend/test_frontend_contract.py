@@ -1,6 +1,7 @@
 """Focused contract tests for frontend-compatible API payloads."""
 import asyncio
 import json
+import logging
 
 import main as app_main
 
@@ -279,6 +280,105 @@ def test_build_alert_events_emits_peak_and_battery_alerts():
         assert "severity" in event
         assert "message" in event
         assert "timestamp" in event
+
+
+def test_build_alert_events_emits_non_peak_large_imbalance_alert():
+    snapshot = {
+        "total_supply": 100.0,
+        "total_demand": 180.0,
+        "battery_level": 80.0,
+        "demand": {"hour": 3},
+    }
+    events = app_main.build_alert_events(snapshot)
+    assert any(event["id"].startswith("peak-demand-") for event in events)
+
+
+def test_monitor_and_broadcast_always_sends_alert_events_key_and_maps_rich_alerts(monkeypatch):
+    app_main.gridHistory.clear()
+    app_main.alertHistory.clear()
+    app_main.manager.active_connections.clear()
+
+    snapshot = app_main.computeGridSnapshot()
+    snapshot["battery_level"] = 15.0
+    snapshot["total_supply"] = 100.0
+    snapshot["total_demand"] = 500.0
+    snapshot["grid"]["frequency"] = 49.0
+    snapshot["grid"]["delta"] = -400.0
+    snapshot["demand"]["hour"] = 12
+
+    monkeypatch.setattr(app_main, "computeGridSnapshot", lambda: snapshot)
+    monkeypatch.setattr(app_main, "logger", logging.getLogger("test-monitor"))
+    monkeypatch.setattr(app_main.monitor_and_broadcast, "weather_counter", 1, raising=False)
+
+    sent_messages = []
+
+    async def fake_broadcast(payload):
+        sent_messages.append(payload)
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(app_main.manager, "active_connections", [object()])
+    monkeypatch.setattr(app_main.manager, "broadcast", fake_broadcast)
+
+    try:
+        asyncio.run(app_main.monitor_and_broadcast())
+    except asyncio.CancelledError:
+        pass
+
+    assert sent_messages, "Expected at least one broadcast payload"
+    payload = sent_messages[0]
+    assert payload["type"] == "GRID_UPDATE"
+    assert "alertEvents" in payload["data"]
+    assert isinstance(payload["data"]["alertEvents"], list)
+    assert payload["data"]["alertEvents"], "Expected merged alert events"
+
+    severities = {event["severity"] for event in payload["data"]["alertEvents"] if "severity" in event}
+    assert "high" in severities or "critical" in severities
+    mapped_types = {
+        event["type"]
+        for event in payload["data"]["alertEvents"]
+        if event.get("severity") in {"high", "medium", "low", "critical"}
+    }
+    assert "warning" in mapped_types or "critical" in mapped_types
+
+
+def test_monitor_and_broadcast_includes_empty_alert_events(monkeypatch):
+    app_main.gridHistory.clear()
+    app_main.alertHistory.clear()
+    app_main.manager.active_connections.clear()
+
+    snapshot = app_main.computeGridSnapshot()
+    snapshot["battery_level"] = 100.0
+    snapshot["total_supply"] = 300.0
+    snapshot["total_demand"] = 300.0
+    snapshot["grid"]["frequency"] = 50.0
+    snapshot["grid"]["delta"] = 0.0
+    snapshot["demand"]["hour"] = 12
+
+    monkeypatch.setattr(app_main, "computeGridSnapshot", lambda: snapshot)
+    monkeypatch.setattr(app_main, "logger", logging.getLogger("test-monitor-empty"))
+    monkeypatch.setattr(app_main.monitor_and_broadcast, "weather_counter", 1, raising=False)
+    monkeypatch.setattr(app_main, "build_alert_events", lambda _: [])
+    monkeypatch.setattr(app_main.monitoring_service_instance, "check_grid_health", lambda **_: [])
+
+    sent_messages = []
+
+    async def fake_broadcast(payload):
+        sent_messages.append(payload)
+        raise asyncio.CancelledError()
+
+    monkeypatch.setattr(app_main.manager, "active_connections", [object()])
+    monkeypatch.setattr(app_main.manager, "broadcast", fake_broadcast)
+
+    try:
+        asyncio.run(app_main.monitor_and_broadcast())
+    except asyncio.CancelledError:
+        pass
+
+    assert sent_messages, "Expected at least one broadcast payload"
+    payload = sent_messages[0]
+    assert payload["type"] == "GRID_UPDATE"
+    assert "alertEvents" in payload["data"]
+    assert payload["data"]["alertEvents"] == []
 
 
 if __name__ == "__main__":

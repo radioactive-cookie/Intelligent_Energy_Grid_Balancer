@@ -34,12 +34,8 @@ const SEVERITY_CONFIG = {
 const AUTO_DISMISS_MS = 30_000;
 
 function AlertItem({ alert, onDismiss }) {
-  const severityKey =
-    alert.type === 'critical'
-      ? 'critical'
-      : alert.type === 'warning'
-        ? 'warning'
-        : alert.severity;
+  const SEVERITY_MAP = { critical: 'critical', high: 'warning', warning: 'warning', medium: 'warning', low: 'info', info: 'info' };
+  const severityKey = SEVERITY_MAP[alert.severity] || SEVERITY_MAP[alert.type] || 'info';
   const cfg = SEVERITY_CONFIG[severityKey] || SEVERITY_CONFIG.info;
   const Icon = cfg.icon;
 

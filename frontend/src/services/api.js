@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL?.trim()?.replace(/\/+$/, '') || '/https://intelligent-energy-grid-balancer-fdxg.onrender.com';
+const API_BASE = import.meta.env.VITE_API_URL?.trim()?.replace(/\/+$/, '') || 'https://intelligent-energy-grid-balancer-fdxg.onrender.com';
 
 async function request(path, options = {}) {
   try {
